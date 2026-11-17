@@ -262,7 +262,7 @@ Staff conversations are attributed to `end_user_id`, so staff get history across
 | **0. Bootstrap** ✅           | Monorepo, lint/tsconfig/turbo, docker-compose dev stack, CI, Drizzle schema + RLS + `withTenant`, crypto package                          |
 | **1. Tenancy & providers** ✅ | Better Auth with orgs; secrets CRUD; LLM + embedding adapters with test-connection; console shell                                         |
 | **2. Ingestion v1** ✅        | Upload connector, parsers, chunker, worker queue, pgvector + Pinecone + Firestore adapters (contract-tested), job progress UI             |
-| **3. Chat v1**                | Retrieval pipeline, SSE chat endpoint, citations, conversation persistence, console playground                                            |
+| **3. Chat v1** ✅             | Retrieval pipeline, SSE chat endpoint, citations, conversation persistence, console playground                                            |
 | **4. Widget (public)**        | `apps/chat`, widget loader, allowed origins, visitor sessions, rate limits, quotas, branding editor, embed snippet                        |
 | **5. Cloud connectors**       | Google Drive + OneDrive/SharePoint OAuth, folder pickers, incremental sync, schedules, deletions                                          |
 | **6. Staff SSO**              | Signed-JWT identify + OIDC, audience filtering, staff history                                                                             |

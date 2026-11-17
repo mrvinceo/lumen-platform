@@ -6,11 +6,13 @@ import { Alert, Spinner } from "./components/ui";
 import "./index.css";
 import { MeProvider, useMe } from "./lib/session";
 import { CreateWorkspacePage, LoginPage, SignupPage } from "./pages/Auth";
+import { BotPage } from "./pages/Bot";
+import { BotsPage } from "./pages/Bots";
 import { KnowledgePage } from "./pages/Knowledge";
 import { KnowledgeBasePage } from "./pages/KnowledgeBase";
 import { AppLayout } from "./pages/Layout";
 import { ModelsPage } from "./pages/Models";
-import { ComingSoonPage, OverviewPage } from "./pages/Overview";
+import { OverviewPage } from "./pages/Overview";
 import { SettingsPage } from "./pages/Settings";
 
 const queryClient = new QueryClient({
@@ -88,15 +90,8 @@ createRoot(document.getElementById("root") as HTMLElement).render(
               <Route path="models" element={<ModelsPage />} />
               <Route path="knowledge" element={<KnowledgePage />} />
               <Route path="knowledge/:id" element={<KnowledgeBasePage />} />
-              <Route
-                path="bots"
-                element={
-                  <ComingSoonPage
-                    title="Bots"
-                    description="Create chatbots from your knowledge bases, brand them, and embed them on your site or intranet."
-                  />
-                }
-              />
+              <Route path="bots" element={<BotsPage />} />
+              <Route path="bots/:id" element={<BotPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
           </Route>

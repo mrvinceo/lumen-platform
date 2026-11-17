@@ -43,6 +43,13 @@
       "when": 1794936338045,
       "tag": "0005_knowledge_ingestion",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794938278934,
+      "tag": "0006_chat",
+      "breakpoints": true
     }
   ]
 }

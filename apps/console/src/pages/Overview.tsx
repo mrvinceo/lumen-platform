@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Circle } from "lucide-react";
 import { Link } from "react-router";
 import { Badge, Card, PageHeader } from "../components/ui";
-import { api, type KnowledgeBase, type ProviderConfig } from "../lib/api";
+import { api, type Bot, type KnowledgeBase, type ProviderConfig } from "../lib/api";
 import { useCurrentMe } from "../lib/session";
 
 export function OverviewPage() {
@@ -15,6 +15,7 @@ export function OverviewPage() {
     queryKey: ["knowledge-bases"],
     queryFn: () => api<{ knowledgeBases: KnowledgeBase[] }>("/api/v1/knowledge-bases"),
   });
+  const bots = useQuery({ queryKey: ["bots"], queryFn: () => api<{ bots: Bot[] }>("/api/v1/bots") });
   const list = providers.data?.providers ?? [];
   const steps = [
     {
@@ -39,11 +40,11 @@ export function OverviewPage() {
       phase: null,
     },
     {
-      done: false,
-      title: "Build and embed a bot",
-      body: "Brand it, test it, and paste one line of code into your site.",
+      done: (bots.data?.bots ?? []).some((b) => b.conversationCount > 0),
+      title: "Build and test a bot",
+      body: "Pick its knowledge and chat model, then try it in the playground. Embedding it on your site is coming next.",
       to: "/bots",
-      phase: "Coming soon",
+      phase: null,
     },
   ];
 
