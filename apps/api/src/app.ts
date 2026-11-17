@@ -1,14 +1,18 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import fastifyMultipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
 import type { KeyProvider } from "@lumen/crypto";
 import { type Database, sql } from "@lumen/db";
+import type { IngestionQueue, ObjectStore } from "@lumen/runtime";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Auth } from "./auth.js";
 import { HttpError } from "./lib/errors.js";
 import { toHeaders } from "./lib/tenantContext.js";
+import { knowledgeRoutes } from "./routes/knowledge.js";
 import { meRoutes } from "./routes/me.js";
 import { providerRoutes } from "./routes/providers.js";
+import { vectorStoreRoutes } from "./routes/vectorStores.js";
 
 export interface AppDeps {
   db: Database;
@@ -18,6 +22,9 @@ export interface AppDeps {
   logLevel?: string;
   /** Directory with the built console; served at / when present. */
   consoleDist?: string;
+  objects?: ObjectStore;
+  queue?: IngestionQueue;
+  maxUploadMb?: number;
   /** Injected in tests to stub provider HTTP calls. */
   fetch?: typeof fetch;
 }
@@ -89,11 +96,23 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       mode: deps.mode ?? "selfhost",
       fetch: deps.fetch,
     });
+
+    if (deps.objects && deps.queue) {
+      const maxUploadMb = deps.maxUploadMb ?? 50;
+      await app.register(fastifyMultipart, {
+        limits: { fileSize: maxUploadMb * 1024 * 1024, files: 50, fields: 10 },
+        throwFileSizeLimit: false,
+      });
+      const runtime = { db: deps.db, keys: deps.keys, objects: deps.objects, fetch: deps.fetch };
+      await vectorStoreRoutes(app, { runtime, auth });
+      await knowledgeRoutes(app, { runtime, auth, queue: deps.queue, maxUploadMb });
+    }
   }
 
   const dist = deps.consoleDist ? resolve(deps.consoleDist) : undefined;
   if (dist && existsSync(join(dist, "index.html"))) {
-    await app.register(fastifyStatic, { root: dist, wildcard: false });
+    // wildcard: serve whatever is in dist now (a rebuild with new hashed asset names needs no restart).
+    await app.register(fastifyStatic, { root: dist, wildcard: true });
     // Single-page app: unknown non-API GETs get index.html so client-side routes work on refresh.
     app.setNotFoundHandler((req, reply) => {
       if (req.method === "GET" && !req.url.startsWith("/api/")) return reply.sendFile("index.html");

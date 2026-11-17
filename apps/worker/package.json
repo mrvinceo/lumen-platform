@@ -13,6 +13,7 @@
     "@lumen/core": "workspace:*",
     "@lumen/crypto": "workspace:*",
     "@lumen/db": "workspace:*",
+    "@lumen/runtime": "workspace:*",
     "@lumen/shared": "workspace:*",
     "bullmq": "^5.81.5",
     "pino": "^10.4.0"

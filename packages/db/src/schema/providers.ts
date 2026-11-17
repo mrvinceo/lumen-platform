@@ -1,4 +1,16 @@
-import { foreignKey, index, jsonb, pgEnum, pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  foreignKey,
+  index,
+  jsonb,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { tenantIdColumn, tenantIsolation, tenantScopedId, timestamps } from "./_helpers.js";
 import { tenants } from "./tenancy.js";
 
@@ -70,12 +82,20 @@ export const vectorStores = pgTable(
     provider: vectorStoreProviderEnum("provider").notNull(),
     label: text("label").notNull(),
     secretId: uuid("secret_id"),
-    /** Non-secret settings: Pinecone index host, Firestore project id, etc. */
+    /** Non-secret settings: Pinecone index name, Firestore project id, etc. */
     config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
+    /** Result of the last health check, shown in the console. */
+    lastCheckOk: boolean("last_check_ok"),
+    lastCheckMessage: text("last_check_message"),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
     tenantScopedId("vector_stores", t.tenantId, t.id),
+    // Exactly one platform-managed store per tenant, created on first use.
+    uniqueIndex("vector_stores_one_managed_per_tenant")
+      .on(t.tenantId)
+      .where(sql`provider = 'pgvector_managed'`),
     foreignKey({ columns: [t.tenantId, t.secretId], foreignColumns: [secrets.tenantId, secrets.id] }),
     tenantIsolation(t.tenantId),
   ],

@@ -1,7 +1,19 @@
 import { randomBytes } from "node:crypto";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { LocalKeyProvider } from "@lumen/crypto";
 import { createDb, type DbHandle } from "@lumen/db";
 import { runMigrations } from "@lumen/db/migrate";
+import {
+  deleteDocument,
+  deleteKnowledgeBase,
+  fsObjectStore,
+  type IngestionJob,
+  type IngestionQueue,
+  ingestDocument,
+  type RuntimeDeps,
+} from "@lumen/runtime";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
 import { createAuth } from "../src/auth.js";
@@ -11,7 +23,22 @@ export const ORIGIN = "http://localhost:3000";
 export interface TestServer {
   app: FastifyInstance;
   handle: DbHandle;
+  /** Jobs the API queued; with the inline queue they have already run. */
+  jobs: IngestionJob[];
   close(): Promise<void>;
+}
+
+/** Runs queued jobs immediately in-process, standing in for Redis + the worker. */
+function inlineQueue(deps: () => RuntimeDeps, jobs: IngestionJob[]): IngestionQueue {
+  return {
+    async enqueue(job) {
+      jobs.push(job);
+      if (job.name === "ingest-document") await ingestDocument(deps(), job.data, { retryDelayMs: 1 });
+      if (job.name === "delete-document") await deleteDocument(deps(), job.data);
+      if (job.name === "delete-knowledge-base") await deleteKnowledgeBase(deps(), job.data);
+    },
+    close: async () => {},
+  };
 }
 
 export async function startTestServer(
@@ -29,17 +56,25 @@ export async function startTestServer(
     MICROSOFT_TENANT_ID: "common",
     NODE_ENV: "test",
   });
+  const keys = new LocalKeyProvider(masterKey);
+  const objects = fsObjectStore(mkdtempSync(join(tmpdir(), "lumen-api-objects-")));
+  const jobs: IngestionJob[] = [];
+  const runtime: RuntimeDeps = { db: handle.db, keys, objects, fetch: opts.fetch };
   const app = await buildApp({
     db: handle.db,
     auth,
-    keys: new LocalKeyProvider(masterKey),
+    keys,
     mode: opts.mode ?? "selfhost",
     logLevel: "silent",
     fetch: opts.fetch,
+    objects,
+    queue: inlineQueue(() => runtime, jobs),
+    maxUploadMb: 1,
   });
   return {
     app,
     handle,
+    jobs,
     close: async () => {
       await app.close();
       await handle.close();
@@ -54,16 +89,21 @@ export class Client {
   constructor(private readonly app: FastifyInstance) {}
 
   async request(method: string, url: string, body?: unknown) {
-    const res = await this.app.inject({
-      method: method as "GET",
-      url,
-      headers: {
-        origin: ORIGIN,
-        cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join("; "),
-        ...(body !== undefined ? { "content-type": "application/json" } : {}),
-      },
-      payload: body === undefined ? undefined : JSON.stringify(body),
-    });
+    const isForm = body instanceof FormData;
+    let payload: string | Buffer | undefined;
+    const headers: Record<string, string> = {
+      origin: ORIGIN,
+      cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join("; "),
+    };
+    if (isForm) {
+      const encoded = new Request("http://x", { method: "POST", body });
+      headers["content-type"] = encoded.headers.get("content-type") ?? "";
+      payload = Buffer.from(await encoded.arrayBuffer());
+    } else if (body !== undefined) {
+      headers["content-type"] = "application/json";
+      payload = JSON.stringify(body);
+    }
+    const res = await this.app.inject({ method: method as "GET", url, headers, payload });
     const setCookie = res.headers["set-cookie"];
     for (const c of Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : []) {
       const [pair] = c.split(";");
@@ -75,6 +115,16 @@ export class Client {
 
   get = (url: string) => this.request("GET", url);
   post = (url: string, body: unknown = {}) => this.request("POST", url, body);
+  upload = (
+    url: string,
+    files: { name: string; content: string | Uint8Array }[],
+    audience?: "public" | "staff",
+  ) => {
+    const form = new FormData();
+    if (audience) form.append("audience", audience);
+    for (const f of files) form.append("files", new Blob([f.content]), f.name);
+    return this.request("POST", url, form);
+  };
   patch = (url: string, body: unknown) => this.request("PATCH", url, body);
   delete = (url: string) => this.request("DELETE", url);
 }

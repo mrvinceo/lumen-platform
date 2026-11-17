@@ -6,6 +6,8 @@ import { Alert, Spinner } from "./components/ui";
 import "./index.css";
 import { MeProvider, useMe } from "./lib/session";
 import { CreateWorkspacePage, LoginPage, SignupPage } from "./pages/Auth";
+import { KnowledgePage } from "./pages/Knowledge";
+import { KnowledgeBasePage } from "./pages/KnowledgeBase";
 import { AppLayout } from "./pages/Layout";
 import { ModelsPage } from "./pages/Models";
 import { ComingSoonPage, OverviewPage } from "./pages/Overview";
@@ -84,15 +86,8 @@ createRoot(document.getElementById("root") as HTMLElement).render(
             <Route element={<AppLayout />}>
               <Route index element={<OverviewPage />} />
               <Route path="models" element={<ModelsPage />} />
-              <Route
-                path="knowledge"
-                element={
-                  <ComingSoonPage
-                    title="Knowledge"
-                    description="Upload documents or connect Google Drive and OneDrive folders, then choose where their vectors are stored. Arriving in the next phase."
-                  />
-                }
-              />
+              <Route path="knowledge" element={<KnowledgePage />} />
+              <Route path="knowledge/:id" element={<KnowledgeBasePage />} />
               <Route
                 path="bots"
                 element={

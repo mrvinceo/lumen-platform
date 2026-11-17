@@ -11,10 +11,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fastify/multipart": "^10.1.9",
     "@fastify/static": "^10.1.11",
     "@lumen/core": "workspace:*",
     "@lumen/crypto": "workspace:*",
     "@lumen/db": "workspace:*",
+    "@lumen/runtime": "workspace:*",
     "@lumen/shared": "workspace:*",
     "better-auth": "^1.7.25",
     "fastify": "^5.12.8",

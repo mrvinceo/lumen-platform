@@ -257,16 +257,16 @@ Staff conversations are attributed to `end_user_id`, so staff get history across
 
 ## 10. Phased delivery
 
-| Phase                      | Deliverable                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **0. Bootstrap**           | Monorepo, lint/tsconfig/turbo, docker-compose dev stack, CI, Drizzle schema + RLS + `withTenant`, crypto package                          |
-| **1. Tenancy & providers** | Better Auth with orgs; secrets CRUD; LLM + embedding adapters with test-connection; console shell                                         |
-| **2. Ingestion v1**        | Upload connector, parsers, chunker, worker queue, pgvector + Pinecone + Firestore adapters (contract-tested), job progress UI             |
-| **3. Chat v1**             | Retrieval pipeline, SSE chat endpoint, citations, conversation persistence, console playground                                            |
-| **4. Widget (public)**     | `apps/chat`, widget loader, allowed origins, visitor sessions, rate limits, quotas, branding editor, embed snippet                        |
-| **5. Cloud connectors**    | Google Drive + OneDrive/SharePoint OAuth, folder pickers, incremental sync, schedules, deletions                                          |
-| **6. Staff SSO**           | Signed-JWT identify + OIDC, audience filtering, staff history                                                                             |
-| **7. Hardening**           | Analytics & feedback, usage metering, audit log, OpenTelemetry, RAG eval harness (golden Q&A per tenant), self-host docs, security review |
+| Phase                         | Deliverable                                                                                                                               |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **0. Bootstrap** ✅           | Monorepo, lint/tsconfig/turbo, docker-compose dev stack, CI, Drizzle schema + RLS + `withTenant`, crypto package                          |
+| **1. Tenancy & providers** ✅ | Better Auth with orgs; secrets CRUD; LLM + embedding adapters with test-connection; console shell                                         |
+| **2. Ingestion v1** ✅        | Upload connector, parsers, chunker, worker queue, pgvector + Pinecone + Firestore adapters (contract-tested), job progress UI             |
+| **3. Chat v1**                | Retrieval pipeline, SSE chat endpoint, citations, conversation persistence, console playground                                            |
+| **4. Widget (public)**        | `apps/chat`, widget loader, allowed origins, visitor sessions, rate limits, quotas, branding editor, embed snippet                        |
+| **5. Cloud connectors**       | Google Drive + OneDrive/SharePoint OAuth, folder pickers, incremental sync, schedules, deletions                                          |
+| **6. Staff SSO**              | Signed-JWT identify + OIDC, audience filtering, staff history                                                                             |
+| **7. Hardening**              | Analytics & feedback, usage metering, audit log, OpenTelemetry, RAG eval harness (golden Q&A per tenant), self-host docs, security review |
 
 **Later:** website crawler, Confluence/Notion/Slack channels, Qdrant/Weaviate/Azure AI Search adapters, permission-aware retrieval from Drive and Graph ACLs, Stripe billing, an LTI channel (port from Lumen) that lets OCA become a tenant, voice/TTS (port `audioTtsService.ts`), and agentic tools.
 

@@ -15,6 +15,11 @@ export const serverEnvSchema = z.object({
   KEY_PROVIDER: z.enum(["local"]).default("local"),
   MASTER_KEY: z.string().min(1),
   MASTER_KEY_ID: z.string().default("local-v1"),
+  /** Where uploaded originals are stored: local disk (dev, small installs) or any S3-compatible service. */
+  STORAGE_DRIVER: z.enum(["fs", "s3"]).default("fs"),
+  /** Directory for STORAGE_DRIVER=fs. Defaults to .data/uploads in the repository. */
+  STORAGE_DIR: z.string().optional(),
+  MAX_UPLOAD_MB: z.coerce.number().int().positive().max(200).default(50),
   S3_ENDPOINT: z.string().optional(),
   S3_REGION: z.string().default("us-east-1"),
   S3_BUCKET: z.string().default("lumen-uploads"),

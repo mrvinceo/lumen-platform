@@ -28,6 +28,14 @@
   extending `catalog.ts` and `factory.ts`, plus a test that fakes its HTTP API (see `packages/core/test`).
 - Tenant-supplied base URLs go through `assertSafeBaseUrl()`; in SaaS mode it blocks private addresses (SSRF).
 
+## Knowledge and ingestion
+
+- Ingestion lives in `packages/runtime/src/pipeline.ts` and runs in the worker (BullMQ `ingestion` queue). The API
+  only stores the upload and queues a job. Chunk ids are deterministic, so unchanged chunks are never re-embedded.
+- New vector stores implement `VectorStore` (`packages/core/src/vectorStore.ts`) and must pass
+  `packages/core/test/contracts/vectorStore.contract.ts`. Scores are normalised to [0, 1].
+- Canonical chunk text stays in Postgres (`chunks`); vector stores hold only ids, vectors, `documentId`, `audience`.
+
 ## Secrets
 
 - Store provider keys and tokens only through `@lumen/crypto` `encryptSecret` (AAD = tenantId + secretId).

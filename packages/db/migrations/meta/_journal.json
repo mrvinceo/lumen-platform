@@ -36,6 +36,13 @@
       "when": 1794934139309,
       "tag": "0004_auth_table_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794936338045,
+      "tag": "0005_knowledge_ingestion",
+      "breakpoints": true
     }
   ]
 }
