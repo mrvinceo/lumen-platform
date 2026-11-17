@@ -22,6 +22,7 @@ async function expectPgError(promise: Promise<unknown>, pattern: RegExp): Promis
 const TENANT_TABLES = [
   "tenants",
   "members",
+  "invitations",
   "audit_log",
   "secrets",
   "provider_configs",
@@ -41,6 +42,9 @@ const TENANT_TABLES = [
   "usage_events",
 ];
 
+/** Better Auth identity tables: global, and never readable by the runtime role. */
+const GLOBAL_TABLES = ["users", "sessions", "accounts", "verifications"];
+
 describe.skipIf(!url)("tenant isolation (Postgres RLS)", () => {
   let handle: DbHandle;
   let a: TenantFixture;
@@ -57,17 +61,17 @@ describe.skipIf(!url)("tenant isolation (Postgres RLS)", () => {
     await handle?.close();
   });
 
-  it("every public table except `users` has RLS enabled and the tenant_isolation policy", async () => {
+  it("every tenant table has RLS enabled and the tenant_isolation policy", async () => {
     const rows = await handle.db.execute<{ tablename: string; rls: boolean; has_policy: boolean }>(sql`
       select c.relname as tablename, c.relrowsecurity as rls,
              exists (select 1 from pg_policies p where p.tablename = c.relname and p.policyname = 'tenant_isolation') as has_policy
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public' and c.relkind = 'r'`);
     const unprotected = rows
-      .filter((r) => r.tablename !== "users" && !(r.rls && r.has_policy))
+      .filter((r) => !GLOBAL_TABLES.includes(r.tablename) && !(r.rls && r.has_policy))
       .map((r) => r.tablename);
     expect(unprotected).toEqual([]);
-    expect(rows.map((r) => r.tablename).sort()).toEqual([...TENANT_TABLES, "users"].sort());
+    expect(rows.map((r) => r.tablename).sort()).toEqual([...TENANT_TABLES, ...GLOBAL_TABLES].sort());
   });
 
   it.each(TENANT_TABLES)("%s: a tenant sees only its own rows", async (table) => {
@@ -162,9 +166,9 @@ describe.skipIf(!url)("tenant isolation (Postgres RLS)", () => {
     expect(ids).not.toContain(a.chunkId);
   });
 
-  it("the runtime role cannot read the global users table", async () => {
+  it.each(GLOBAL_TABLES)("the runtime role cannot read the global %s table", async (table) => {
     await expectPgError(
-      withTenant(handle.db, a.tenantId, (tx) => tx.execute(sql`select * from users`)),
+      withTenant(handle.db, a.tenantId, (tx) => tx.execute(sql`select * from ${sql.identifier(table)}`)),
       /permission denied/,
     );
   });

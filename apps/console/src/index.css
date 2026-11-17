@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+/* Design tokens. Components use these via Tailwind's theme so light/dark stay consistent. */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+}
+
+:root {
+  --bg: #f7f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f1f4;
+  --border: #e3e3e8;
+  --fg: #16161d;
+  --muted: #6b6b78;
+  --accent: #4f46e5;
+  --accent-fg: #ffffff;
+  --accent-soft: #eef0ff;
+  --ok: #15803d;
+  --ok-soft: #e9f8ee;
+  --danger: #b91c1c;
+  --danger-soft: #fdecec;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f14;
+    --surface: #17171f;
+    --surface-2: #1f1f29;
+    --border: #2c2c38;
+    --fg: #ededf2;
+    --muted: #9a9aab;
+    --accent: #8b85ff;
+    --accent-fg: #0f0f14;
+    --accent-soft: #23224a;
+    --ok: #4ade80;
+    --ok-soft: #13291c;
+    --danger: #f87171;
+    --danger-soft: #2e1515;
+    color-scheme: dark;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}

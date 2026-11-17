@@ -11,16 +11,19 @@ From these, the tenant publishes an **embeddable chat widget**. It can be public
 
 The platform runs as a hosted SaaS or self-hosted with Docker Compose.
 
-> **Status:** Phase 0 (foundations) is done. See [docs/architecture.md](docs/architecture.md) for the full design and roadmap.
+> **Status:** Phase 1 (tenancy and model providers) is done: sign-up/sign-in, workspaces, roles, encrypted provider
+> keys, and connection testing for Anthropic, OpenAI, Google Gemini, Voyage and any OpenAI-compatible endpoint.
+> See [docs/architecture.md](docs/architecture.md) for the full design and roadmap.
 
 ## Repository layout
 
 ```
-apps/api        Fastify REST + SSE API (health/readiness today)
+apps/api        Fastify API: auth (Better Auth), workspaces, model providers; serves the built console
+apps/console    React admin console (Vite + Tailwind)
 apps/worker     BullMQ ingestion worker (skeleton)
 packages/db     Drizzle schema, migrations, Postgres RLS, withTenant()
 packages/crypto Envelope encryption for tenant secrets
-packages/core   Provider interfaces: ChatModel, EmbeddingModel, VectorStore, SourceConnector
+packages/core   Provider catalog + adapters (Anthropic, OpenAI/compatible, Gemini, Voyage) and interfaces
 packages/shared Env parsing, ids, shared types
 deploy/         docker-compose (Postgres+pgvector, Redis, S3-compatible storage, apps)
 docs/           Architecture and plan
@@ -60,17 +63,22 @@ Apply the database migrations:
 pnpm db:migrate
 ```
 
-Run the API and worker in watch mode:
+Run the API, worker and console in watch mode:
 
 ```bash
 pnpm dev
 ```
 
-Check that it's running:
+Then open the console at http://localhost:5173, create an account and a workspace, and add your models under
+**Models**. The console proxies `/api` to the API on `PORT` from `.env` (default 3000).
+
+To check the API on its own:
 
 ```bash
 curl localhost:3000/ready
 ```
+
+In production the API serves the built console itself, so everything is on one origin (`PUBLIC_URL`).
 
 ### Self-hosting
 

@@ -48,18 +48,18 @@ Working name: **Lumen Platform**. It can be renamed later.
 
 All TypeScript, to stay close to your existing skills.
 
-| Concern             | Choice                                                                                                   |
-| ------------------- | -------------------------------------------------------------------------------------------------------- |
-| Monorepo            | pnpm workspaces + Turborepo                                                                              |
-| API                 | Fastify + Zod (`fastify-type-provider-zod`), SSE streaming                                               |
-| DB / ORM            | Postgres 16 + pgvector, Drizzle ORM + drizzle-kit migrations                                             |
-| Queue               | BullMQ on Redis                                                                                          |
-| Console auth        | Better Auth (email/password, Google/Microsoft OAuth, organizations plugin = tenants)                     |
-| LLM / embedding SDK | Vercel AI SDK (`ai`, `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`), behind our own interfaces |
-| Object storage      | S3-compatible (GCS/S3 in SaaS, MinIO for self-host)                                                      |
-| Frontends           | React 19 + Vite + Tailwind 4 (console, chat); Preact web component (widget loader, <15 KB)               |
-| Tests               | Vitest, Testcontainers (Postgres/Redis), Playwright e2e                                                  |
-| Observability       | pino logs (tenant_id on every line), OpenTelemetry traces                                                |
+| Concern             | Choice                                                                                                                                                                                          |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Monorepo            | pnpm workspaces + Turborepo                                                                                                                                                                     |
+| API                 | Fastify + Zod (`fastify-type-provider-zod`), SSE streaming                                                                                                                                      |
+| DB / ORM            | Postgres 16 + pgvector, Drizzle ORM + drizzle-kit migrations                                                                                                                                    |
+| Queue               | BullMQ on Redis                                                                                                                                                                                 |
+| Console auth        | Better Auth (email/password, Google/Microsoft OAuth, organizations plugin = tenants)                                                                                                            |
+| LLM / embedding SDK | Official provider SDKs behind our own `ChatModel` / `EmbeddingModel` interfaces: `@anthropic-ai/sdk`, `openai` (also for OpenAI-compatible endpoints), `@google/genai`; Voyage via its REST API |
+| Object storage      | S3-compatible (GCS/S3 in SaaS, MinIO for self-host)                                                                                                                                             |
+| Frontends           | React 19 + Vite + Tailwind 4 (console, chat); Preact web component (widget loader, <15 KB)                                                                                                      |
+| Tests               | Vitest, Testcontainers (Postgres/Redis), Playwright e2e                                                                                                                                         |
+| Observability       | pino logs (tenant_id on every line), OpenTelemetry traces                                                                                                                                       |
 
 ### Repo layout
 

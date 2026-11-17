@@ -1,16 +1,49 @@
-import type { Database } from "@lumen/db";
-import { sql } from "drizzle-orm";
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
+import fastifyStatic from "@fastify/static";
+import type { KeyProvider } from "@lumen/crypto";
+import { type Database, sql } from "@lumen/db";
 import Fastify, { type FastifyInstance } from "fastify";
+import type { Auth } from "./auth.js";
+import { HttpError } from "./lib/errors.js";
+import { toHeaders } from "./lib/tenantContext.js";
+import { meRoutes } from "./routes/me.js";
+import { providerRoutes } from "./routes/providers.js";
 
 export interface AppDeps {
   db: Database;
+  auth?: Auth;
+  keys?: KeyProvider;
+  mode?: "saas" | "selfhost";
   logLevel?: string;
+  /** Directory with the built console; served at / when present. */
+  consoleDist?: string;
+  /** Injected in tests to stub provider HTTP calls. */
+  fetch?: typeof fetch;
 }
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: { level: deps.logLevel ?? "info", redact: ["req.headers.authorization", "req.headers.cookie"] },
+    logger: {
+      level: deps.logLevel ?? "info",
+      redact: ["req.headers.authorization", "req.headers.cookie", 'res.headers["set-cookie"]'],
+    },
     trustProxy: true,
+    bodyLimit: 1024 * 1024,
+  });
+
+  app.setErrorHandler((err, req, reply) => {
+    if (err instanceof HttpError) {
+      return reply
+        .code(err.statusCode)
+        .send({ error: { code: err.code, message: err.message, details: err.details } });
+    }
+    const status = (err as { statusCode?: number }).statusCode;
+    if (status && status >= 400 && status < 500) {
+      return reply.code(status).send({ error: { code: "bad_request", message: (err as Error).message } });
+    }
+    req.log.error({ err }, "unhandled error");
+    return reply.code(500).send({ error: { code: "internal", message: "Something went wrong." } });
   });
 
   app.get("/health", async () => ({ status: "ok" }));
@@ -24,6 +57,49 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       return reply.code(503).send({ status: "unavailable" });
     }
   });
+
+  if (deps.auth && deps.keys) {
+    const auth = deps.auth;
+
+    // Better Auth works on Fetch API requests; bridge Fastify's request/reply to it.
+    app.route({
+      method: ["GET", "POST"],
+      url: "/api/auth/*",
+      handler: async (req, reply) => {
+        const url = new URL(req.url, `${req.protocol}://${req.headers.host}`);
+        const body = req.method === "POST" && req.body !== undefined ? JSON.stringify(req.body) : undefined;
+        const res = await auth.handler(
+          new Request(url, { method: req.method, headers: toHeaders(req.headers), body }),
+        );
+        reply.status(res.status);
+        const cookies = res.headers.getSetCookie();
+        res.headers.forEach((value, key) => {
+          if (key !== "set-cookie") reply.header(key, value);
+        });
+        if (cookies.length > 0) reply.header("set-cookie", cookies);
+        return reply.send(res.body ? await res.text() : null);
+      },
+    });
+
+    await meRoutes(app, { db: deps.db, auth });
+    await providerRoutes(app, {
+      db: deps.db,
+      auth,
+      keys: deps.keys,
+      mode: deps.mode ?? "selfhost",
+      fetch: deps.fetch,
+    });
+  }
+
+  const dist = deps.consoleDist ? resolve(deps.consoleDist) : undefined;
+  if (dist && existsSync(join(dist, "index.html"))) {
+    await app.register(fastifyStatic, { root: dist, wildcard: false });
+    // Single-page app: unknown non-API GETs get index.html so client-side routes work on refresh.
+    app.setNotFoundHandler((req, reply) => {
+      if (req.method === "GET" && !req.url.startsWith("/api/")) return reply.sendFile("index.html");
+      return reply.code(404).send({ error: { code: "not_found", message: "Not found." } });
+    });
+  }
 
   return app;
 }
