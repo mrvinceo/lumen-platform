@@ -47,7 +47,7 @@ describe.skipIf(!url)("tenant isolation (Postgres RLS)", () => {
   let b: TenantFixture;
 
   beforeAll(async () => {
-    await runMigrations(process.env.DATABASE_ADMIN_URL ?? url!);
+    await runMigrations(process.env.DATABASE_ADMIN_URL || url!);
     handle = createDb(url!);
     a = await seedTenant(handle.db, "a");
     b = await seedTenant(handle.db, "b");
