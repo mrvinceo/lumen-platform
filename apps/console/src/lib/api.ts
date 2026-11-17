@@ -172,3 +172,136 @@ export async function uploadFiles(kbId: string, files: File[], audience: Audienc
   }
   return { documents: data.documents ?? [], rejected: data.rejected ?? [] };
 }
+
+export interface Bot {
+  id: string;
+  name: string;
+  kbIds: string[];
+  llmConfigId: string;
+  systemPrompt: string;
+  grounding: "strict" | "lenient";
+  fallbackMessage: string;
+  topK: number;
+  publicKey: string;
+  llmLabel: string;
+  llmModel: string;
+  knowledgeBases: { id: string; name: string }[];
+  conversationCount: number;
+  lastActivityAt: string | null;
+  createdAt: string;
+}
+
+export interface Citation {
+  n: number;
+  chunkId: string;
+  documentId: string;
+  title: string;
+  headings?: string[];
+  page?: number;
+  snippet: string;
+  score: number;
+}
+
+export interface ChatSource {
+  n: number;
+  chunkId: string;
+  documentId: string;
+  title: string;
+  headings: string[];
+  page?: number;
+  text: string;
+  score: number;
+  via: string[];
+  audience: Audience;
+}
+
+export type ChatEvent =
+  | { type: "meta"; conversationId: string; userMessageId: string }
+  | {
+      type: "sources";
+      query: string;
+      condensed: boolean;
+      sources: ChatSource[];
+      skipped: { kbId: string; reason: string }[];
+    }
+  | { type: "delta"; text: string }
+  | {
+      type: "done";
+      messageId: string;
+      citations: Citation[];
+      usage: { tokensIn: number; tokensOut: number };
+      finishReason: string;
+      latencyMs: number;
+      fallback: boolean;
+    }
+  | { type: "error"; code: string; message: string; messageId?: string };
+
+export interface ConversationSummary {
+  id: string;
+  title: string | null;
+  channel: string;
+  updatedAt: string;
+  messageCount: number;
+}
+
+export interface StoredMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations: Citation[];
+  status: "complete" | "error" | "stopped";
+  error: string | null;
+  feedback: "up" | "down" | null;
+  latencyMs: number | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  retrieval: {
+    query: string;
+    condensed: boolean;
+    sources: { n: number; title: string; score: number; via: string[] }[];
+    timingsMs?: { condense?: number; retrieve?: number; firstToken?: number; total?: number };
+  } | null;
+  createdAt: string;
+}
+
+/** Streams a playground chat turn (Server-Sent Events over a POST). */
+export async function* streamChat(
+  botId: string,
+  body: { message: string; conversationId?: string; includeStaff: boolean },
+  signal: AbortSignal,
+): AsyncGenerator<ChatEvent> {
+  const res = await fetch(`/api/v1/bots/${botId}/chat`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    const data = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } };
+    throw new ApiError(
+      res.status,
+      data.error?.code ?? "error",
+      data.error?.message ?? `Chat failed (${res.status})`,
+    );
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += value;
+    let sep = buffer.indexOf("\n\n");
+    while (sep !== -1) {
+      const block = buffer.slice(0, sep);
+      buffer = buffer.slice(sep + 2);
+      const data = block
+        .split("\n")
+        .filter((l) => l.startsWith("data: "))
+        .map((l) => l.slice(6))
+        .join("\n");
+      if (data) yield JSON.parse(data) as ChatEvent;
+      sep = buffer.indexOf("\n\n");
+    }
+  }
+}

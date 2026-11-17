@@ -11,11 +11,11 @@ From these, the tenant publishes an **embeddable chat widget**. It can be public
 
 The platform runs as a hosted SaaS or self-hosted with Docker Compose.
 
-> **Status:** Phase 2 (knowledge bases and ingestion) is done. Tenants can create knowledge bases on the built-in
-> store, Pinecone or Firestore, and upload PDF, Word, PowerPoint, Excel, CSV, Markdown, HTML and text files. A
-> background worker parses, chunks and embeds them, and a search preview shows what a bot would retrieve.
-> See [docs/architecture.md](docs/architecture.md) for the roadmap and [docs/vector-stores.md](docs/vector-stores.md)
-> for setting up Pinecone or Firestore.
+> **Status:** Phase 3 (chat) is done. Tenants create **bots** that answer from their knowledge bases with their
+> own chat model, streaming answers with numbered citations. A console **playground** shows exactly which passages
+> were retrieved for each answer, and conversations are saved with feedback. Phases 0–2 provide workspaces,
+> encrypted model keys, knowledge bases on the built-in store, Pinecone or Firestore, and document ingestion.
+> See [docs/architecture.md](docs/architecture.md) for the roadmap; the embeddable widget is next.
 
 ## Repository layout
 
@@ -26,7 +26,7 @@ apps/worker     BullMQ worker: document ingestion and deletion
 packages/db     Drizzle schema, migrations, Postgres RLS, withTenant()
 packages/crypto Envelope encryption for tenant secrets
 packages/core   Model adapters, vector store adapters (Pinecone, Firestore), parsers and chunker
-packages/runtime Shared server code: ingestion pipeline, managed pgvector store, object storage, queue
+packages/runtime Shared server code: ingestion, hybrid retrieval, chat service, managed pgvector, storage, queue
 packages/shared Env parsing, ids, shared types
 deploy/         docker-compose (Postgres+pgvector, Redis, S3-compatible storage, apps)
 docs/           Architecture and plan

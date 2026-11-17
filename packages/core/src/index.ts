@@ -1,4 +1,8 @@
 export * from "./catalog.js";
+export * from "./chat/citations.js";
+export * from "./chat/complete.js";
+export * from "./chat/condense.js";
+export * from "./chat/prompt.js";
 export type * from "./connector.js";
 export * from "./errors.js";
 export * from "./factory.js";

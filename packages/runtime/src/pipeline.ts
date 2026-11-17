@@ -8,7 +8,7 @@ import {
   type VectorItem,
   VectorStoreError,
 } from "@lumen/core";
-import { and, eq, inArray, schema, withTenant } from "@lumen/db";
+import { and, eq, inArray, schema, sql, withTenant } from "@lumen/db";
 import { documentPrefix, kbPrefix } from "./objectStore.js";
 import { type LoadedKnowledgeBase, loadKnowledgeBase, type RuntimeDeps } from "./resolve.js";
 
@@ -311,7 +311,11 @@ export async function deleteKnowledgeBase(
   );
   if (loaded) await loaded.store.deleteNamespace(loaded.ref);
   await deps.objects.deletePrefix(kbPrefix(input.tenantId, input.kbId));
-  await withTenant(deps.db, input.tenantId, (tx) =>
-    tx.delete(schema.knowledgeBases).where(eq(schema.knowledgeBases.id, input.kbId)),
-  );
+  await withTenant(deps.db, input.tenantId, async (tx) => {
+    // Bots reference knowledge bases by id; drop the reference so they don't point at nothing.
+    await tx.execute(
+      sql`update bots set kb_ids = array_remove(kb_ids, ${input.kbId}::uuid) where ${input.kbId}::uuid = any(kb_ids)`,
+    );
+    await tx.delete(schema.knowledgeBases).where(eq(schema.knowledgeBases.id, input.kbId));
+  });
 }

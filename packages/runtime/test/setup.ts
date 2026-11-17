@@ -28,18 +28,46 @@ export interface StubEmbedder {
   fetch: typeof fetch;
   calls: { inputs: string[] }[];
   failWith?: number;
+  /** Chat completions: decides the streamed reply from the request. */
+  chatReply: (req: { system: string; user: string; messages: { role: string; content: string }[] }) => string;
+  chatCalls: { system: string; user: string }[];
+  chatFailWith?: number;
 }
 
 export function stubEmbedder(): StubEmbedder {
   const stub: StubEmbedder = {
     calls: [],
+    chatCalls: [],
+    chatReply: () => "OK",
     fetch: (async (input: string | URL | Request, init?: RequestInit) => {
       const req = input instanceof Request ? input : new Request(input, init);
       const json = (b: unknown, s = 200) =>
         new Response(JSON.stringify(b), { status: s, headers: { "content-type": "application/json" } });
-      if (stub.failWith) return json({ error: { message: "Invalid API key" } }, stub.failWith);
       if (req.headers.get("authorization") !== `Bearer ${EMBED_KEY}`)
         return json({ error: { message: "bad key" } }, 401);
+      if (req.url.endsWith("/chat/completions")) {
+        if (stub.chatFailWith)
+          return json({ error: { message: "The model is overloaded" } }, stub.chatFailWith);
+        const chatBody = (await req.json()) as { messages: { role: string; content: string }[] };
+        const system =
+          chatBody.messages.find((m) => m.role === "system" || m.role === "developer")?.content ?? "";
+        const rest = chatBody.messages.filter((m) => m.role === "user" || m.role === "assistant");
+        const user = rest.at(-1)?.content ?? "";
+        stub.chatCalls.push({ system, user });
+        const reply = stub.chatReply({ system, user, messages: rest });
+        const frame = (choices: unknown[], extra: object = {}) =>
+          `data: ${JSON.stringify({ id: "c", object: "chat.completion.chunk", created: 1, model: "stub", choices, ...extra })}\n\n`;
+        const words = reply.match(/\S+\s*/g) ?? [];
+        const sse =
+          words.map((w) => frame([{ index: 0, delta: { content: w }, finish_reason: null }])).join("") +
+          frame([{ index: 0, delta: {}, finish_reason: "stop" }]) +
+          frame([], {
+            usage: { prompt_tokens: 100, completion_tokens: words.length, total_tokens: 100 + words.length },
+          }) +
+          "data: [DONE]\n\n";
+        return new Response(sse, { status: 200, headers: { "content-type": "text/event-stream" } });
+      }
+      if (stub.failWith) return json({ error: { message: "Invalid API key" } }, stub.failWith);
       const body = (await req.json()) as { input: string[] };
       stub.calls.push({ inputs: body.input });
       return json({
@@ -123,7 +151,19 @@ export async function makeTenantKb(world: World) {
       .insert(schema.sources)
       .values({ tenantId, kbId, type: "upload", name: "Uploads" })
       .returning();
-    return { tenantId, kb: kb!, sourceId: source!.id, embeddingConfigId: emb!.id };
+    const [llm] = await tx
+      .insert(schema.providerConfigs)
+      .values({
+        tenantId,
+        type: "llm",
+        provider: "openai_compatible",
+        model: "stub-chat",
+        label: "chat",
+        secretId: secret.id,
+        baseUrl: EMBED_BASE,
+      })
+      .returning();
+    return { tenantId, kb: kb!, sourceId: source!.id, embeddingConfigId: emb!.id, llmConfigId: llm!.id };
   });
 }
 

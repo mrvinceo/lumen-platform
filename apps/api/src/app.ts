@@ -9,6 +9,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { Auth } from "./auth.js";
 import { HttpError } from "./lib/errors.js";
 import { toHeaders } from "./lib/tenantContext.js";
+import { botRoutes } from "./routes/bots.js";
 import { knowledgeRoutes } from "./routes/knowledge.js";
 import { meRoutes } from "./routes/me.js";
 import { providerRoutes } from "./routes/providers.js";
@@ -106,6 +107,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       const runtime = { db: deps.db, keys: deps.keys, objects: deps.objects, fetch: deps.fetch };
       await vectorStoreRoutes(app, { runtime, auth });
       await knowledgeRoutes(app, { runtime, auth, queue: deps.queue, maxUploadMb });
+      await botRoutes(app, { runtime, auth });
     }
   }
 

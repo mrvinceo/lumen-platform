@@ -78,6 +78,8 @@ export const conversations = pgTable(
     /** Verified staff identity (SSO `sub`), when present. */
     endUserId: text("end_user_id"),
     channel: channelEnum("channel").notNull().default("widget"),
+    /** Shown in conversation lists; taken from the first question. */
+    title: text("title"),
     ...timestamps,
   },
   (t) => [
@@ -86,6 +88,7 @@ export const conversations = pgTable(
       "cascade",
     ),
     index("conversations_bot_created_idx").on(t.botId, t.createdAt),
+    index("conversations_bot_updated_idx").on(t.tenantId, t.botId, t.updatedAt),
     tenantIsolation(t.tenantId),
   ],
 );
@@ -93,14 +96,27 @@ export const conversations = pgTable(
 export const messageRoleEnum = pgEnum("message_role", ["user", "assistant", "system"]);
 export const feedbackEnum = pgEnum("feedback", ["up", "down"]);
 
+export const messageStatusEnum = pgEnum("message_status", ["complete", "error", "stopped"]);
+
 export interface Citation {
   n: number;
   chunkId: string;
   documentId: string;
   title: string;
+  headings?: string[];
+  page?: number;
   url?: string;
   snippet: string;
   score: number;
+}
+
+/** What retrieval did for an answer: drives the console's "what the bot saw" panel and later analytics. */
+export interface RetrievalTrace {
+  query: string;
+  condensed: boolean;
+  sources: { n: number; chunkId: string; documentId: string; title: string; score: number; via: string[] }[];
+  skippedKnowledgeBases?: { kbId: string; reason: string }[];
+  timingsMs?: { condense?: number; retrieve?: number; firstToken?: number; total?: number };
 }
 
 export const messages = pgTable(
@@ -116,6 +132,10 @@ export const messages = pgTable(
     tokensOut: integer("tokens_out"),
     latencyMs: integer("latency_ms"),
     feedback: feedbackEnum("feedback"),
+    status: messageStatusEnum("status").notNull().default("complete"),
+    /** Error shown for a failed answer. */
+    error: text("error"),
+    retrieval: jsonb("retrieval").$type<RetrievalTrace>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
