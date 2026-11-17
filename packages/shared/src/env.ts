@@ -4,7 +4,11 @@ import { z } from "zod";
 export const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LUMEN_MODE: z.enum(["saas", "selfhost"]).default("selfhost"),
+  /** Where the API (and, in production, the bundled console) is reachable from browsers. */
   PUBLIC_URL: z.url().default("http://localhost:3000"),
+  /** Extra browser origin allowed to call the auth endpoints, e.g. the Vite dev server for the console. */
+  CONSOLE_URL: z.url().default("http://localhost:5173"),
+  PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1),
   DATABASE_ADMIN_URL: z.string().min(1).optional(),
   REDIS_URL: z.string().min(1).default("redis://localhost:6379"),
@@ -16,6 +20,20 @@ export const serverEnvSchema = z.object({
   S3_BUCKET: z.string().default("lumen-uploads"),
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
+  /** Signs session cookies. Derived from MASTER_KEY when unset, so self-hosters have one less secret to manage. */
+  AUTH_SECRET: z.string().min(32).optional(),
+  /** Set to false to stop new people signing up (e.g. a private self-hosted install once set up). */
+  ALLOW_SIGNUPS: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  MICROSOFT_CLIENT_ID: z.string().optional(),
+  MICROSOFT_CLIENT_SECRET: z.string().optional(),
+  MICROSOFT_TENANT_ID: z.string().default("common"),
+  /** Built console assets to serve from the API in production. */
+  CONSOLE_DIST: z.string().optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 });
 

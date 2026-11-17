@@ -15,6 +15,19 @@
   - an entry in `TENANT_TABLES` in `packages/db/test/tenantIsolation.test.ts`. The test fails if a table lacks RLS.
 - After schema changes, run `pnpm db:generate` and commit the migration. CI fails on drift.
 
+## Auth
+
+- Better Auth (apps/api/src/auth.ts) owns `users`, `sessions`, `accounts`, `verifications` (global, revoked from
+  `lumen_app`) and writes `tenants`/`members`/`invitations` as its "organization" tables via the system connection.
+- Routes resolve the caller with `requireTenant()` (session → active workspace → membership) and check
+  `requireRole()` before writing. Owners/admins manage providers; editors can test; viewers read.
+
+## Providers
+
+- Adapters live in `packages/core/src/providers/*`, built on each provider's official SDK. Add a provider by
+  extending `catalog.ts` and `factory.ts`, plus a test that fakes its HTTP API (see `packages/core/test`).
+- Tenant-supplied base URLs go through `assertSafeBaseUrl()`; in SaaS mode it blocks private addresses (SSRF).
+
 ## Secrets
 
 - Store provider keys and tokens only through `@lumen/crypto` `encryptSecret` (AAD = tenantId + secretId).

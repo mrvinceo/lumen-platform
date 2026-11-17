@@ -9,16 +9,20 @@ ARG APP=api
 COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @lumen/${APP} build
-RUN pnpm --filter @lumen/${APP} deploy --prod --legacy /out
+# The API image also serves the console's static build.
+RUN if [ "$APP" = "api" ]; then pnpm --filter @lumen/console build; else mkdir -p apps/console/dist; fi
+# Hoisted layout so the bundle can import the dependencies of bundled workspace packages.
+RUN pnpm --filter @lumen/${APP} deploy --prod --legacy --config.node-linker=hoisted /out
 
 FROM node:22-slim AS runtime
 ARG APP=api
-ENV NODE_ENV=production MIGRATIONS_DIR=/app/migrations
+ENV NODE_ENV=production MIGRATIONS_DIR=/app/migrations CONSOLE_DIST=/app/console
 WORKDIR /app
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/package.json ./package.json
 COPY --from=build /repo/apps/${APP}/dist ./dist
 COPY --from=build /repo/packages/db/migrations ./migrations
+COPY --from=build /repo/apps/console/dist ./console
 USER node
 EXPOSE 3000
 CMD ["node", "dist/main.js"]

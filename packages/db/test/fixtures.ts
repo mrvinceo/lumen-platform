@@ -125,6 +125,13 @@ export async function seedTenant(db: Database, label: string): Promise<TenantFix
       .insert(s.usageEvents)
       .values({ tenantId, botId: bot!.id, kind: "chat", provider: "openai", model: "m" });
     await tx.insert(s.auditLog).values({ tenantId, actorId: userId, action: "seed" });
+    await tx.insert(s.invitations).values({
+      tenantId,
+      email: `invitee-${suffix}@example.test`,
+      role: "viewer",
+      expiresAt: new Date(Date.now() + 86_400_000),
+      inviterId: userId,
+    });
 
     return {
       tenantId,
