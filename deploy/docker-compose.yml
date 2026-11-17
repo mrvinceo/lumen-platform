@@ -1,0 +1,75 @@
+# Run from the repo root so the root .env is used (it must set POSTGRES_PASSWORD):
+#   Local development:  docker compose --env-file .env -f deploy/docker-compose.yml up -d
+#   Self-host / full:   docker compose --env-file .env -f deploy/docker-compose.yml --profile app up -d --build
+name: lumen
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg16
+    # POSTGRES_PASSWORD comes from the root .env (the image refuses to initialise without one).
+    env_file: [../.env]
+    environment:
+      POSTGRES_USER: lumen
+      POSTGRES_DB: lumen
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lumen -d lumen"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    ports: ["6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  # S3-compatible object storage for uploads (SeaweedFS). In production point S3_* at S3, GCS or R2 instead.
+  s3:
+    image: chrislusf/seaweedfs:4.54
+    command: server -s3 -dir=/data
+    ports: ["8333:8333"]
+    volumes: [s3data:/data]
+
+  migrate:
+    profiles: [app]
+    build: { context: .., args: { APP: api } }
+    command: ["node", "dist/migrate.js"]
+    env_file: [../.env]
+    environment:
+      DATABASE_URL: postgres://lumen:${POSTGRES_PASSWORD}@postgres:5432/lumen
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    profiles: [app]
+    build: { context: .., args: { APP: api } }
+    env_file: [../.env]
+    environment:
+      DATABASE_URL: postgres://lumen:${POSTGRES_PASSWORD}@postgres:5432/lumen
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://s3:8333
+    ports: ["3000:3000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker:
+    profiles: [app]
+    build: { context: .., args: { APP: worker } }
+    env_file: [../.env]
+    environment:
+      DATABASE_URL: postgres://lumen:${POSTGRES_PASSWORD}@postgres:5432/lumen
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://s3:8333
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  redisdata:
+  s3data:
