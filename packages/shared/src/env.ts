@@ -22,7 +22,11 @@ export const serverEnvSchema = z.object({
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
 export function parseServerEnv(env: NodeJS.ProcessEnv = process.env): ServerEnv {
-  const result = serverEnvSchema.safeParse(env);
+  // `.env` files commonly contain blank entries such as `DATABASE_ADMIN_URL=`; treat those as unset.
+  const cleaned = Object.fromEntries(
+    Object.entries(env).filter(([, v]) => v !== undefined && v.trim() !== ""),
+  );
+  const result = serverEnvSchema.safeParse(cleaned);
   if (!result.success) {
     const issues = result.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");
     throw new Error(`Invalid environment configuration:\n${issues}`);
