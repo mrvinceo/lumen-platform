@@ -53,7 +53,7 @@ export function codeForStatus(status: number | undefined): ProviderErrorCode {
 export function toProviderError(err: unknown, apiKey?: string): ProviderError {
   if (err instanceof ProviderError) return err;
   const e = err as { status?: unknown; code?: unknown; message?: unknown; name?: unknown; cause?: unknown };
-  const status = typeof e?.status === "number" ? e.status : undefined;
+  const status = typeof e?.status === "number" ? e.status : statusFromErrorName(e?.name);
   let code = codeForStatus(status);
   const raw = typeof e?.message === "string" ? e.message : String(err);
   if (status === undefined) {
@@ -69,6 +69,18 @@ export function toProviderError(err: unknown, apiKey?: string): ProviderError {
     status,
     cause: err,
   });
+}
+
+/** Some SDKs (e.g. Pinecone) signal HTTP failures with error classes rather than a status field. */
+function statusFromErrorName(name: unknown): number | undefined {
+  if (typeof name !== "string") return undefined;
+  if (/Authoriz|Authentic|Unauthori/.test(name)) return 401;
+  if (/Forbidden|Permission/.test(name)) return 403;
+  if (/NotFound/.test(name)) return 404;
+  if (/RateLimit|TooManyRequests/.test(name)) return 429;
+  if (/BadRequest|ArgumentError/.test(name)) return 400;
+  if (/Internal|ServerError|Unavailable/.test(name)) return 503;
+  return undefined;
 }
 
 function redact(text: string, apiKey?: string): string {

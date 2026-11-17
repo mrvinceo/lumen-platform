@@ -13,13 +13,14 @@ import {
 import type { KeyProvider } from "@lumen/crypto";
 import { maskSecret } from "@lumen/crypto";
 import { and, type Database, desc, eq, schema, type Tx, withTenant } from "@lumen/db";
+import { readSecret, storeSecret } from "@lumen/runtime";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Auth } from "../auth.js";
 import { assertSafeBaseUrl } from "../lib/baseUrl.js";
+import { audit, isForeignKeyViolation } from "../lib/db.js";
 import { HttpError, notFound } from "../lib/errors.js";
-import { readSecret, storeSecret } from "../lib/secrets.js";
-import { type RequestContext, requireRole, requireTenant } from "../lib/tenantContext.js";
+import { requireRole, requireTenant } from "../lib/tenantContext.js";
 import { parse } from "../lib/validate.js";
 
 export interface ProviderRouteDeps {
@@ -94,18 +95,6 @@ async function loadRow(tx: Tx, tenantId: string, id: string): Promise<ProviderRo
     .where(and(eq(schema.providerConfigs.id, id), eq(schema.providerConfigs.tenantId, tenantId)));
   if (!row) throw notFound("Model provider");
   return { ...row.config, last4: row.last4 };
-}
-
-async function audit(
-  tx: Tx,
-  ctx: RequestContext,
-  action: string,
-  target: string,
-  metadata?: Record<string, unknown>,
-) {
-  await tx
-    .insert(schema.auditLog)
-    .values({ tenantId: ctx.tenantId, actorId: ctx.userId, action, target, metadata });
 }
 
 export async function providerRoutes(app: FastifyInstance, deps: ProviderRouteDeps): Promise<void> {
@@ -354,9 +343,4 @@ export async function providerRoutes(app: FastifyInstance, deps: ProviderRouteDe
     });
     return { result };
   });
-}
-
-function isForeignKeyViolation(err: unknown): boolean {
-  const e = err as { code?: string; cause?: { code?: string } };
-  return e?.code === "23503" || e?.cause?.code === "23503";
 }

@@ -11,19 +11,22 @@ From these, the tenant publishes an **embeddable chat widget**. It can be public
 
 The platform runs as a hosted SaaS or self-hosted with Docker Compose.
 
-> **Status:** Phase 1 (tenancy and model providers) is done: sign-up/sign-in, workspaces, roles, encrypted provider
-> keys, and connection testing for Anthropic, OpenAI, Google Gemini, Voyage and any OpenAI-compatible endpoint.
-> See [docs/architecture.md](docs/architecture.md) for the full design and roadmap.
+> **Status:** Phase 2 (knowledge bases and ingestion) is done. Tenants can create knowledge bases on the built-in
+> store, Pinecone or Firestore, and upload PDF, Word, PowerPoint, Excel, CSV, Markdown, HTML and text files. A
+> background worker parses, chunks and embeds them, and a search preview shows what a bot would retrieve.
+> See [docs/architecture.md](docs/architecture.md) for the roadmap and [docs/vector-stores.md](docs/vector-stores.md)
+> for setting up Pinecone or Firestore.
 
 ## Repository layout
 
 ```
 apps/api        Fastify API: auth (Better Auth), workspaces, model providers; serves the built console
 apps/console    React admin console (Vite + Tailwind)
-apps/worker     BullMQ ingestion worker (skeleton)
+apps/worker     BullMQ worker: document ingestion and deletion
 packages/db     Drizzle schema, migrations, Postgres RLS, withTenant()
 packages/crypto Envelope encryption for tenant secrets
-packages/core   Provider catalog + adapters (Anthropic, OpenAI/compatible, Gemini, Voyage) and interfaces
+packages/core   Model adapters, vector store adapters (Pinecone, Firestore), parsers and chunker
+packages/runtime Shared server code: ingestion pipeline, managed pgvector store, object storage, queue
 packages/shared Env parsing, ids, shared types
 deploy/         docker-compose (Postgres+pgvector, Redis, S3-compatible storage, apps)
 docs/           Architecture and plan

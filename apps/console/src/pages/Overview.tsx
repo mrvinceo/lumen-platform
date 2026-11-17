@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Circle } from "lucide-react";
 import { Link } from "react-router";
 import { Badge, Card, PageHeader } from "../components/ui";
-import { api, type ProviderConfig } from "../lib/api";
+import { api, type KnowledgeBase, type ProviderConfig } from "../lib/api";
 import { useCurrentMe } from "../lib/session";
 
 export function OverviewPage() {
@@ -10,6 +10,10 @@ export function OverviewPage() {
   const providers = useQuery({
     queryKey: ["providers"],
     queryFn: () => api<{ providers: ProviderConfig[] }>("/api/v1/providers"),
+  });
+  const kbs = useQuery({
+    queryKey: ["knowledge-bases"],
+    queryFn: () => api<{ knowledgeBases: KnowledgeBase[] }>("/api/v1/knowledge-bases"),
   });
   const list = providers.data?.providers ?? [];
   const steps = [
@@ -28,11 +32,11 @@ export function OverviewPage() {
       phase: null,
     },
     {
-      done: false,
+      done: (kbs.data?.knowledgeBases ?? []).some((k) => k.indexedCount > 0),
       title: "Create a knowledge base",
-      body: "Upload files or connect Google Drive or OneDrive.",
+      body: "Upload your documents. Google Drive and OneDrive connections are coming.",
       to: "/knowledge",
-      phase: "Coming next",
+      phase: null,
     },
     {
       done: false,

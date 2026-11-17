@@ -87,3 +87,88 @@ export interface TestResult {
 }
 
 export const canManage = (role: Role | undefined) => role === "owner" || role === "admin";
+
+export const canEdit = (role: Role | undefined) => role === "owner" || role === "admin" || role === "editor";
+
+export type Audience = "public" | "staff";
+
+export interface VectorStoreInfo {
+  id: string;
+  provider: "pgvector_managed" | "pinecone" | "firestore";
+  providerName: string;
+  label: string;
+  managed: boolean;
+  config: Record<string, unknown>;
+  keyHint: string | null;
+  lastCheck: { ok: boolean | null; message: string | null; checkedAt: string } | null;
+  knowledgeBases: number;
+}
+
+export interface KnowledgeBase {
+  id: string;
+  name: string;
+  description: string | null;
+  dimension: number;
+  createdAt: string;
+  embeddingConfigId: string;
+  embeddingLabel: string;
+  embeddingModel: string;
+  vectorStoreId: string;
+  vectorStoreLabel: string;
+  vectorStoreProvider: string;
+  documentCount: number;
+  indexedCount: number;
+  pendingCount: number;
+  errorCount: number;
+  chunkCount: number;
+}
+
+export interface KbDocument {
+  id: string;
+  title: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  audience: Audience;
+  status: "pending" | "indexing" | "indexed" | "excluded" | "error";
+  error: string | null;
+  chunkCount: number;
+  tokenCount: number;
+  indexedAt: string | null;
+  createdAt: string;
+}
+
+export interface SearchHit {
+  chunkId: string;
+  documentId: string;
+  documentTitle: string;
+  score: number;
+  text: string;
+  headings: string[];
+  page?: number;
+  audience: Audience;
+}
+
+/** Multipart upload; returns accepted documents and per-file rejections. */
+export async function uploadFiles(kbId: string, files: File[], audience: Audience) {
+  const form = new FormData();
+  form.append("audience", audience);
+  for (const f of files) form.append("files", f, f.name);
+  const res = await fetch(`/api/v1/knowledge-bases/${kbId}/documents`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    documents?: KbDocument[];
+    rejected?: { filename: string; reason: string }[];
+    error?: { code?: string; message?: string };
+  };
+  if (!res.ok && !data.rejected) {
+    throw new ApiError(
+      res.status,
+      data.error?.code ?? "error",
+      data.error?.message ?? `Upload failed (${res.status})`,
+    );
+  }
+  return { documents: data.documents ?? [], rejected: data.rejected ?? [] };
+}

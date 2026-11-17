@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { keyProviderFromEnv } from "@lumen/crypto";
 import { createDb } from "@lumen/db";
+import { createIngestionQueue, createObjectStore } from "@lumen/runtime";
 import { parseServerEnv } from "@lumen/shared";
 import { buildApp } from "./app.js";
 import { createAuth } from "./auth.js";
@@ -15,11 +16,15 @@ const keys = keyProviderFromEnv({
 
 const { db, close } = createDb(env.DATABASE_URL);
 const auth = createAuth(db, env);
+const queue = createIngestionQueue(env.REDIS_URL);
 const app = await buildApp({
   db,
   auth,
   keys,
   mode: env.LUMEN_MODE,
+  objects: createObjectStore(env),
+  queue,
+  maxUploadMb: env.MAX_UPLOAD_MB,
   logLevel: env.LOG_LEVEL,
   consoleDist: env.CONSOLE_DIST ?? fileURLToPath(new URL("../../console/dist", import.meta.url)),
 });
@@ -30,6 +35,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, async () => {
     app.log.info({ signal }, "shutting down");
     await app.close();
+    await queue.close();
     await close();
     process.exit(0);
   });

@@ -35,6 +35,7 @@ export const knowledgeBases = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    description: text("description"),
     embeddingConfigId: uuid("embedding_config_id").notNull(),
     vectorStoreId: uuid("vector_store_id").notNull(),
     dimension: integer("dimension").notNull(),
@@ -93,7 +94,13 @@ export const sources = pgTable(
   ],
 );
 
-export const documentStatusEnum = pgEnum("document_status", ["pending", "indexed", "excluded", "error"]);
+export const documentStatusEnum = pgEnum("document_status", [
+  "pending",
+  "indexing",
+  "indexed",
+  "excluded",
+  "error",
+]);
 
 export const documents = pgTable(
   "documents",
@@ -112,6 +119,12 @@ export const documents = pgTable(
     audience: audienceEnum("audience").notNull().default("public"),
     status: documentStatusEnum("status").notNull().default("pending"),
     error: text("error"),
+    /** Object-storage key of the original file (uploads), kept so the document can be re-indexed. */
+    storageKey: text("storage_key"),
+    sizeBytes: integer("size_bytes"),
+    chunkCount: integer("chunk_count").notNull().default(0),
+    tokenCount: integer("token_count").notNull().default(0),
+    indexedAt: timestamp("indexed_at", { withTimezone: true }),
     modifiedAt: timestamp("modified_at", { withTimezone: true }),
     ...timestamps,
   },
@@ -209,7 +222,13 @@ export const embeddingTables = {
   3072: embeddings3072,
 } as const;
 
-export const jobKindEnum = pgEnum("job_kind", ["full_sync", "incremental_sync", "reindex", "delete"]);
+export const jobKindEnum = pgEnum("job_kind", [
+  "full_sync",
+  "incremental_sync",
+  "ingest",
+  "reindex",
+  "delete",
+]);
 export const jobStatusEnum = pgEnum("job_status", ["queued", "running", "succeeded", "failed", "cancelled"]);
 
 export const ingestionJobs = pgTable(
@@ -218,6 +237,8 @@ export const ingestionJobs = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     tenantId: tenantIdColumn().references(() => tenants.id, { onDelete: "cascade" }),
     sourceId: uuid("source_id").notNull(),
+    /** Set for single-document jobs (upload ingest, re-index, delete). */
+    documentId: uuid("document_id"),
     kind: jobKindEnum("kind").notNull(),
     status: jobStatusEnum("status").notNull().default("queued"),
     /** 0-100 */
@@ -235,6 +256,10 @@ export const ingestionJobs = pgTable(
     foreignKey({
       columns: [t.tenantId, t.sourceId],
       foreignColumns: [sources.tenantId, sources.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [t.tenantId, t.documentId],
+      foreignColumns: [documents.tenantId, documents.id],
     }).onDelete("cascade"),
     index("ingestion_jobs_source_created_idx").on(t.sourceId, t.createdAt),
     tenantIsolation(t.tenantId),

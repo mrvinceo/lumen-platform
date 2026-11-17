@@ -51,6 +51,8 @@ services:
     environment:
       DATABASE_URL: postgres://lumen:${POSTGRES_PASSWORD}@postgres:5432/lumen
       REDIS_URL: redis://redis:6379
+      # api and worker run in separate containers, so uploads go to shared S3-compatible storage.
+      STORAGE_DRIVER: s3
       S3_ENDPOINT: http://s3:8333
     ports: ["3000:3000"]
     depends_on:
@@ -64,6 +66,8 @@ services:
     environment:
       DATABASE_URL: postgres://lumen:${POSTGRES_PASSWORD}@postgres:5432/lumen
       REDIS_URL: redis://redis:6379
+      # api and worker run in separate containers, so uploads go to shared S3-compatible storage.
+      STORAGE_DRIVER: s3
       S3_ENDPOINT: http://s3:8333
     depends_on:
       migrate: { condition: service_completed_successfully }
