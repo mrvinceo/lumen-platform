@@ -2,8 +2,8 @@ import { FileText } from "lucide-react";
 import { type CSSProperties, type ReactNode, useId, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Citation } from "../lib/api";
-import { cx } from "./ui";
+import { cx } from "./cx";
+import type { Citation } from "./types";
 
 /** Turns [1], [1, 3] and [2-4] markers into links the renderer swaps for citation chips. */
 export function linkCitations(text: string, available: Set<number>): string {
@@ -71,16 +71,18 @@ function CitationChip({ citation }: { citation: Citation }) {
               {citation.page ? `${citation.headings?.length ? " · " : ""}page ${citation.page}` : ""}
             </span>
           )}
-          <span className="mt-2 line-clamp-6 block whitespace-pre-line text-fg">
-            {stripHeading(citation.snippet, citation.headings)}
-          </span>
+          {citation.snippet ? (
+            <span className="mt-2 line-clamp-6 block whitespace-pre-line text-fg">
+              {stripHeading(citation.snippet, citation.headings)}
+            </span>
+          ) : null}
         </span>
       )}
     </span>
   );
 }
 
-function stripHeading(text: string, headings?: string[]) {
+function stripHeading(text: string, headings?: string[]): string {
   const prefix = `${(headings ?? []).join(" › ")}\n\n`;
   return headings?.length && text.startsWith(prefix) ? text.slice(prefix.length) : text;
 }

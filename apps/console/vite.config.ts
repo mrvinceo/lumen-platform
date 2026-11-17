@@ -11,7 +11,13 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     server: {
       port: 5173,
-      proxy: { "/api": { target: `http://localhost:${apiPort}`, changeOrigin: false } },
+      // The widget script, iframe pages and their assets are served by the API too.
+      proxy: Object.fromEntries(
+        ["/api", "/widget.js", "/w/", "/b/", "/chat/"].map((path) => [
+          path,
+          { target: `http://localhost:${apiPort}`, changeOrigin: false },
+        ]),
+      ),
     },
     build: { outDir: "dist", sourcemap: true },
   };

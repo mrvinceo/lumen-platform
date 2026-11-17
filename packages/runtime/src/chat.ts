@@ -61,12 +61,14 @@ export interface ChatInput {
   channel: ChatChannel;
   visitorId?: string;
   endUserId?: string;
+  /** Public channels: refuse to continue a conversation with this many user turns already. */
+  maxTurns?: number;
   signal?: AbortSignal;
 }
 
 export class ChatError extends Error {
   constructor(
-    readonly code: "bot_not_found" | "conversation_not_found" | "model_unavailable",
+    readonly code: "bot_not_found" | "conversation_not_found" | "conversation_full" | "model_unavailable",
     message: string,
   ) {
     super(message);
@@ -142,7 +144,12 @@ export async function* runChat(deps: RuntimeDeps, input: ChatInput): AsyncGenera
         .select()
         .from(schema.conversations)
         .where(and(eq(schema.conversations.id, conversationId), eq(schema.conversations.botId, bot.id)));
-      if (!conv) throw new ChatError("conversation_not_found", "Conversation not found.");
+      // A public visitor may only continue their own conversation (same visitor id, same public channel).
+      const ownedByCaller =
+        input.visitorId !== undefined
+          ? conv?.visitorId === input.visitorId && conv.channel === input.channel
+          : conv !== undefined;
+      if (!conv || !ownedByCaller) throw new ChatError("conversation_not_found", "Conversation not found.");
       const prior = await tx
         .select({
           role: schema.messages.role,
@@ -153,6 +160,12 @@ export async function* runChat(deps: RuntimeDeps, input: ChatInput): AsyncGenera
         .where(eq(schema.messages.conversationId, conversationId))
         .orderBy(desc(schema.messages.createdAt))
         .limit(20);
+      if (input.maxTurns !== undefined && prior.filter((m) => m.role === "user").length >= input.maxTurns) {
+        throw new ChatError(
+          "conversation_full",
+          "This conversation is quite long now. Start a new one to continue.",
+        );
+      }
       history = prior
         .reverse()
         .filter(

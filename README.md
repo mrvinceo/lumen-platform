@@ -11,18 +11,22 @@ From these, the tenant publishes an **embeddable chat widget**. It can be public
 
 The platform runs as a hosted SaaS or self-hosted with Docker Compose.
 
-> **Status:** Phase 3 (chat) is done. Tenants create **bots** that answer from their knowledge bases with their
-> own chat model, streaming answers with numbered citations. A console **playground** shows exactly which passages
-> were retrieved for each answer, and conversations are saved with feedback. Phases 0–2 provide workspaces,
-> encrypted model keys, knowledge bases on the built-in store, Pinecone or Firestore, and document ingestion.
-> See [docs/architecture.md](docs/architecture.md) for the roadmap; the embeddable widget is next.
+> **Status:** Phase 4 (embeddable widget) is done. Tenants put a bot on any website with one line of HTML, or share
+> a hosted chat page. Visitors get answers from **public** documents only, with citations; the bot is restricted to
+> the domains the tenant lists, rate-limited, and can have a monthly answer cap. Branding is edited in the console
+> with a live preview. Phases 0–3 provide workspaces, encrypted model keys, knowledge bases, document ingestion and
+> the chat pipeline with a playground. See [docs/widget.md](docs/widget.md) to install the widget and
+> [docs/architecture.md](docs/architecture.md) for the roadmap; Google Drive and OneDrive connectors are next.
 
 ## Repository layout
 
 ```
-apps/api        Fastify API: auth (Better Auth), workspaces, model providers; serves the built console
+apps/api        Fastify API: auth (Better Auth), workspaces, providers, bots, public widget API; serves the built frontends
 apps/console    React admin console (Vite + Tailwind)
 apps/worker     BullMQ worker: document ingestion and deletion
+apps/chat       Visitor chat app shown inside the widget iframe (/w/<key>) and as the hosted page (/b/<key>)
+packages/widget The widget.js loader: chat bubble in a Shadow DOM, opens apps/chat in an iframe
+packages/chat-ui Answer rendering and SSE client shared by the console and apps/chat
 packages/db     Drizzle schema, migrations, Postgres RLS, withTenant()
 packages/crypto Envelope encryption for tenant secrets
 packages/core   Model adapters, vector store adapters (Pinecone, Firestore), parsers and chunker

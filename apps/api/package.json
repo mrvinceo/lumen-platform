@@ -20,6 +20,7 @@
     "@lumen/shared": "workspace:*",
     "better-auth": "^1.7.25",
     "fastify": "^5.12.8",
+    "ioredis": "^5.11.1",
     "pino": "^10.4.0",
     "zod": "^4.6.7"
   },

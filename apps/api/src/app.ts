@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import fastifyMultipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
@@ -8,11 +8,20 @@ import type { IngestionQueue, ObjectStore } from "@lumen/runtime";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { Auth } from "./auth.js";
 import { HttpError } from "./lib/errors.js";
+import {
+  DEFAULT_WIDGET_LIMITS,
+  type MonthlyCounter,
+  memoryMonthlyCounter,
+  memoryRateLimiter,
+  type RateLimiter,
+  type WidgetLimits,
+} from "./lib/rateLimit.js";
 import { toHeaders } from "./lib/tenantContext.js";
 import { botRoutes } from "./routes/bots.js";
 import { knowledgeRoutes } from "./routes/knowledge.js";
 import { meRoutes } from "./routes/me.js";
 import { providerRoutes } from "./routes/providers.js";
+import { publicRoutes } from "./routes/public.js";
 import { vectorStoreRoutes } from "./routes/vectorStores.js";
 
 export interface AppDeps {
@@ -26,6 +35,17 @@ export interface AppDeps {
   objects?: ObjectStore;
   queue?: IngestionQueue;
   maxUploadMb?: number;
+  /** Public widget: visitor-token key, limits and built assets. Omit to disable the public surface. */
+  widget?: {
+    tokenKey: Buffer;
+    tokenTtlSeconds?: number;
+    limiter?: RateLimiter;
+    monthly?: MonthlyCounter;
+    limits?: WidgetLimits;
+    selfOrigins: string[];
+    chatDist?: string;
+    widgetScript?: string;
+  };
   /** Injected in tests to stub provider HTTP calls. */
   fetch?: typeof fetch;
 }
@@ -107,7 +127,34 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       const runtime = { db: deps.db, keys: deps.keys, objects: deps.objects, fetch: deps.fetch };
       await vectorStoreRoutes(app, { runtime, auth });
       await knowledgeRoutes(app, { runtime, auth, queue: deps.queue, maxUploadMb });
-      await botRoutes(app, { runtime, auth });
+      await botRoutes(app, { runtime, auth, mode: deps.mode ?? "selfhost" });
+      if (deps.widget) {
+        const w = deps.widget;
+        await publicRoutes(app, {
+          runtime,
+          tokenKey: w.tokenKey,
+          tokenTtlSeconds: w.tokenTtlSeconds ?? 2 * 60 * 60,
+          limiter: w.limiter ?? memoryRateLimiter(),
+          monthly: w.monthly ?? memoryMonthlyCounter(),
+          limits: w.limits ?? DEFAULT_WIDGET_LIMITS,
+          selfOrigins: w.selfOrigins,
+          chatDist: w.chatDist,
+          widgetScript: w.widgetScript,
+        });
+        // The chat app's hashed assets (its index.html is served per bot by publicRoutes, with CSP).
+        const chatAssets = w.chatDist ? join(resolve(w.chatDist), "assets") : undefined;
+        if (chatAssets) {
+          // Created if missing so a later build (pnpm dev) is served without restarting.
+          mkdirSync(chatAssets, { recursive: true });
+          await app.register(fastifyStatic, {
+            root: chatAssets,
+            prefix: "/chat/assets/",
+            decorateReply: false,
+            maxAge: "1y",
+            immutable: true,
+          });
+        }
+      }
     }
   }
 

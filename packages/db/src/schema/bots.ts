@@ -1,4 +1,5 @@
 import {
+  boolean,
   foreignKey,
   index,
   integer,
@@ -54,6 +55,10 @@ export const bots = pgTable(
     mode: botModeEnum("mode").notNull().default("public"),
     ssoConfig: jsonb("sso_config").$type<BotSsoConfig>().notNull().default({}),
     monthlyMessageCap: integer("monthly_message_cap"),
+    /** The embeddable bubble (/widget.js + /w/:publicKey). Also needs at least one allowed origin. */
+    widgetEnabled: boolean("widget_enabled").notNull().default(true),
+    /** The shareable full-page chat at /b/:publicKey. */
+    hostedPageEnabled: boolean("hosted_page_enabled").notNull().default(true),
     ...timestamps,
   },
   (t) => [
@@ -89,6 +94,7 @@ export const conversations = pgTable(
     ),
     index("conversations_bot_created_idx").on(t.botId, t.createdAt),
     index("conversations_bot_updated_idx").on(t.tenantId, t.botId, t.updatedAt),
+    index("conversations_visitor_idx").on(t.tenantId, t.visitorId),
     tenantIsolation(t.tenantId),
   ],
 );

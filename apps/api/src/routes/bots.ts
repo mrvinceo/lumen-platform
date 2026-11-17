@@ -7,13 +7,34 @@ import { z } from "zod";
 import type { Auth } from "../auth.js";
 import { audit } from "../lib/db.js";
 import { HttpError, notFound } from "../lib/errors.js";
+import { normaliseAllowedOrigin } from "../lib/origins.js";
+import { streamChatEvents } from "../lib/sse.js";
 import { requireRole, requireTenant } from "../lib/tenantContext.js";
 import { parse } from "../lib/validate.js";
 
 export interface BotRouteDeps {
   runtime: RuntimeDeps;
   auth: Auth;
+  mode: "saas" | "selfhost";
 }
+
+const brandingSchema = z.object({
+  title: z.string().trim().max(60).optional(),
+  greeting: z.string().trim().max(300).optional(),
+  primaryColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #4f46e5.")
+    .optional(),
+  logoUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((v) => v === "" || v.startsWith("https://"), "The logo must be an https:// image URL.")
+    .optional(),
+  suggestedQuestions: z.array(z.string().trim().min(1).max(120)).max(4).optional(),
+  position: z.enum(["bottom-right", "bottom-left"]).optional(),
+  theme: z.enum(["light", "dark", "auto"]).optional(),
+});
 
 const botFields = {
   name: z.string().trim().min(1).max(100),
@@ -31,7 +52,16 @@ const createSchema = z.object({
   fallbackMessage: botFields.fallbackMessage.optional(),
   topK: botFields.topK.default(6),
 });
-const updateSchema = z.object(botFields).partial();
+const updateSchema = z
+  .object({
+    ...botFields,
+    branding: brandingSchema,
+    allowedOrigins: z.array(z.string().trim().min(1).max(200)).max(20),
+    widgetEnabled: z.boolean(),
+    hostedPageEnabled: z.boolean(),
+    monthlyMessageCap: z.number().int().min(1).max(10_000_000).nullable(),
+  })
+  .partial();
 
 const chatSchema = z.object({
   message: z.string().trim().min(1).max(4_000),
@@ -45,6 +75,11 @@ const feedbackSchema = z.object({ feedback: z.enum(["up", "down"]).nullable() })
 const botSummary = sql`
   select b.id, b.name, b.kb_ids as "kbIds", b.llm_config_id as "llmConfigId", b.system_prompt as "systemPrompt",
          b.grounding, b.fallback_message as "fallbackMessage", b.top_k as "topK", b.public_key as "publicKey",
+         b.branding, b.allowed_origins as "allowedOrigins", b.widget_enabled as "widgetEnabled",
+         b.hosted_page_enabled as "hostedPageEnabled", b.monthly_message_cap as "monthlyMessageCap",
+         (select count(*)::int from messages m join conversations c on c.id = m.conversation_id
+           where c.bot_id = b.id and m.role = 'assistant' and c.channel in ('widget', 'hosted')
+             and m.created_at >= date_trunc('month', now() at time zone 'utc')) as "publicAnswersThisMonth",
          b.created_at as "createdAt", b.updated_at as "updatedAt",
          p.label as "llmLabel", p.provider as "llmProvider", p.model as "llmModel",
          coalesce((select json_agg(json_build_object('id', k.id, 'name', k.name) order by k.name)
@@ -140,11 +175,15 @@ export async function botRoutes(app: FastifyInstance, deps: BotRouteDeps): Promi
     const patch = parse(updateSchema, req.body);
     await getBot(ctx.tenantId, id);
     await validateRefs(ctx.tenantId, patch);
+    const allowedOrigins = patch.allowedOrigins
+      ? [...new Set(patch.allowedOrigins.map((o) => normaliseAllowedOrigin(o, deps.mode)))]
+      : undefined;
     await withTenant(db, ctx.tenantId, async (tx) => {
       await tx
         .update(schema.bots)
         .set({
           ...patch,
+          ...(allowedOrigins ? { allowedOrigins } : {}),
           ...(patch.kbIds ? { kbIds: [...new Set(patch.kbIds)] } : {}),
           ...(patch.fallbackMessage !== undefined
             ? { fallbackMessage: patch.fallbackMessage || DEFAULT_FALLBACK }
@@ -200,31 +239,7 @@ export async function botRoutes(app: FastifyInstance, deps: BotRouteDeps): Promi
       throw err;
     }
 
-    reply.hijack();
-    const res = reply.raw;
-    res.writeHead(200, {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-      "x-accel-buffering": "no",
-    });
-    // Stop the model call if the browser goes away (closed tab, "Stop" button).
-    res.on("close", () => {
-      if (!res.writableFinished) abort.abort();
-    });
-    const send = (e: ChatEvent) => res.write(`event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`);
-    try {
-      if (!first.done) send(first.value);
-      for await (const e of gen) {
-        if (res.destroyed) break;
-        send(e);
-      }
-    } catch (err) {
-      req.log.error({ err }, "chat stream failed");
-      send({ type: "error", code: "internal", message: "Something went wrong while answering." });
-    } finally {
-      res.end();
-    }
+    await streamChatEvents(req, reply, first, gen, abort);
   });
 
   app.get<{ Params: { id: string }; Querystring: { before?: string } }>(

@@ -1,6 +1,7 @@
 export * from "./chat.js";
 export * from "./objectStore.js";
 export * from "./pipeline.js";
+export * from "./publicBot.js";
 export * from "./queue.js";
 export * from "./resolve.js";
 export * from "./retrieve.js";
