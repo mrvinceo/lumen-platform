@@ -1,0 +1,24 @@
+{
+  "name": "@lumen/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "build": "tsup",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@lumen/crypto": "workspace:*",
+    "@lumen/db": "workspace:*",
+    "@lumen/shared": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.8",
+    "pino": "^10.4.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1"
+  }
+}

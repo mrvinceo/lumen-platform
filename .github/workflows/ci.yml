@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg16
+        env:
+          POSTGRES_USER: postgres
+          # Throwaway container reachable only from this job: password-less auth, no credentials in the repo.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+    env:
+      # Tests run as a non-superuser table owner, like a managed Postgres (Neon, Supabase, Cloud SQL).
+      DATABASE_URL: postgres://lumen@localhost:5432/lumen_test
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Prepare database
+        run: |
+          psql -h localhost -U postgres -c "CREATE ROLE lumen LOGIN CREATEROLE;"
+          psql -h localhost -U postgres -c "CREATE DATABASE lumen_test OWNER lumen;"
+          psql -h localhost -U postgres -d lumen_test -c "CREATE EXTENSION vector;"
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Check migrations are in sync with the schema
+        run: |
+          pnpm --filter @lumen/db exec drizzle-kit generate --name=ci_drift_check
+          git status --porcelain packages/db/migrations
+          test -z "$(git status --porcelain packages/db/migrations)"
