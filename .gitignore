@@ -7,3 +7,6 @@ dist
 coverage
 *.log
 .data
+
+# Redis snapshots from a locally run redis-server
+*.rdb

@@ -1,8 +1,8 @@
+import { Answer } from "@lumen/chat-ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Copy, MessageSquarePlus, Send, Square, ThumbsDown, ThumbsUp, Trash2 } from "lucide-react";
 import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { Answer } from "../components/Answer";
 import { Alert, Badge, Button, Card, cx, Modal, PageHeader, Spinner } from "../components/ui";
 import {
   api,
@@ -16,9 +16,10 @@ import {
   streamChat,
 } from "../lib/api";
 import { useCurrentMe } from "../lib/session";
+import { BotEmbed } from "./BotEmbed";
 import { BotForm } from "./Bots";
 
-type Tab = "playground" | "conversations";
+type Tab = "playground" | "conversations" | "embed";
 
 export function BotPage() {
   const { id = "" } = useParams();
@@ -85,6 +86,7 @@ export function BotPage() {
           [
             ["playground", "Playground"],
             ["conversations", `Conversations (${b.conversationCount})`],
+            ["embed", "Embed & branding"],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -92,7 +94,12 @@ export function BotPage() {
             type="button"
             role="tab"
             aria-selected={tab === key}
-            onClick={() => setTab(key)}
+            onClick={() => {
+              setTab(key);
+              // Website visitors add conversations too, so refresh the counts.
+              void qc.invalidateQueries({ queryKey: ["bot", id] });
+              void qc.invalidateQueries({ queryKey: ["conversations", id] });
+            }}
             className={cx(
               "-mb-px border-b-2 px-3 py-2 text-sm font-medium",
               tab === key ? "border-accent text-accent" : "border-transparent text-muted hover:text-fg",
@@ -108,6 +115,8 @@ export function BotPage() {
         ) : (
           <Alert tone="info">The playground needs the editor role or higher.</Alert>
         )
+      ) : tab === "embed" ? (
+        <BotEmbed bot={b} />
       ) : (
         <Conversations botId={b.id} />
       )}

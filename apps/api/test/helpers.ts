@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LocalKeyProvider } from "@lumen/crypto";
@@ -16,6 +16,21 @@ import {
 } from "@lumen/runtime";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.js";
+import { DEFAULT_WIDGET_LIMITS, type WidgetLimits } from "../src/lib/rateLimit.js";
+import { visitorTokenKey } from "../src/lib/visitorToken.js";
+
+/** Stand-ins for the built chat app and loader, so serving and headers can be tested without a build. */
+function fakeChatDist(): string {
+  const dir = mkdtempSync(join(tmpdir(), "lumen-chat-dist-"));
+  writeFileSync(join(dir, "index.html"), "<!doctype html><title>chat</title><div id=root></div>");
+  return dir;
+}
+function fakeWidgetScript(): string {
+  const file = join(mkdtempSync(join(tmpdir(), "lumen-widget-")), "widget.js");
+  writeFileSync(file, "/* lumen widget */");
+  return file;
+}
+
 import { createAuth } from "../src/auth.js";
 
 export const ORIGIN = "http://localhost:3000";
@@ -42,7 +57,7 @@ function inlineQueue(deps: () => RuntimeDeps, jobs: IngestionJob[]): IngestionQu
 }
 
 export async function startTestServer(
-  opts: { fetch?: typeof fetch; mode?: "saas" | "selfhost" } = {},
+  opts: { fetch?: typeof fetch; mode?: "saas" | "selfhost"; limits?: Partial<WidgetLimits> } = {},
 ): Promise<TestServer> {
   const url = process.env.DATABASE_URL!;
   await runMigrations(process.env.DATABASE_ADMIN_URL || url);
@@ -70,6 +85,13 @@ export async function startTestServer(
     objects,
     queue: inlineQueue(() => runtime, jobs),
     maxUploadMb: 1,
+    widget: {
+      tokenKey: visitorTokenKey(masterKey),
+      selfOrigins: [ORIGIN],
+      limits: { ...DEFAULT_WIDGET_LIMITS, ...opts.limits },
+      chatDist: fakeChatDist(),
+      widgetScript: fakeWidgetScript(),
+    },
   });
   return {
     app,

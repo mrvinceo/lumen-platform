@@ -37,6 +37,16 @@ export const serverEnvSchema = z.object({
   MICROSOFT_CLIENT_ID: z.string().optional(),
   MICROSOFT_CLIENT_SECRET: z.string().optional(),
   MICROSOFT_TENANT_ID: z.string().default("common"),
+  /** Lifetime of anonymous widget visitor sessions, in minutes. */
+  WIDGET_TOKEN_TTL_MIN: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(24 * 60)
+    .default(120),
+  /** Built widget chat app (apps/chat/dist) and loader script (packages/widget/dist/widget.js). */
+  CHAT_DIST: z.string().optional(),
+  WIDGET_SCRIPT: z.string().optional(),
   /** Built console assets to serve from the API in production. */
   CONSOLE_DIST: z.string().optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),

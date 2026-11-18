@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Shared chat components live outside this app; include them in Tailwind's class scan. */
+@source "../../../packages/chat-ui/src";
 
 /* Design tokens. Components use these via Tailwind's theme so light/dark stay consistent. */
 @theme {

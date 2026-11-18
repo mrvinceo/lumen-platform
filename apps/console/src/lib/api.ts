@@ -1,3 +1,7 @@
+import { type ChatEvent, type Citation, streamChatEvents } from "@lumen/chat-ui";
+
+export type { ChatEvent, ChatSource, Citation } from "@lumen/chat-ui";
+
 /** Thin fetch wrapper for the Lumen API. Errors carry the server's `{ error: { code, message, details } }`. */
 export class ApiError extends Error {
   constructor(
@@ -189,52 +193,23 @@ export interface Bot {
   conversationCount: number;
   lastActivityAt: string | null;
   createdAt: string;
+  branding: BotBranding;
+  allowedOrigins: string[];
+  widgetEnabled: boolean;
+  hostedPageEnabled: boolean;
+  monthlyMessageCap: number | null;
+  publicAnswersThisMonth: number;
 }
 
-export interface Citation {
-  n: number;
-  chunkId: string;
-  documentId: string;
-  title: string;
-  headings?: string[];
-  page?: number;
-  snippet: string;
-  score: number;
+export interface BotBranding {
+  title?: string;
+  greeting?: string;
+  primaryColor?: string;
+  logoUrl?: string;
+  suggestedQuestions?: string[];
+  position?: "bottom-right" | "bottom-left";
+  theme?: "light" | "dark" | "auto";
 }
-
-export interface ChatSource {
-  n: number;
-  chunkId: string;
-  documentId: string;
-  title: string;
-  headings: string[];
-  page?: number;
-  text: string;
-  score: number;
-  via: string[];
-  audience: Audience;
-}
-
-export type ChatEvent =
-  | { type: "meta"; conversationId: string; userMessageId: string }
-  | {
-      type: "sources";
-      query: string;
-      condensed: boolean;
-      sources: ChatSource[];
-      skipped: { kbId: string; reason: string }[];
-    }
-  | { type: "delta"; text: string }
-  | {
-      type: "done";
-      messageId: string;
-      citations: Citation[];
-      usage: { tokensIn: number; tokensOut: number };
-      finishReason: string;
-      latencyMs: number;
-      fallback: boolean;
-    }
-  | { type: "error"; code: string; message: string; messageId?: string };
 
 export interface ConversationSummary {
   id: string;
@@ -265,43 +240,10 @@ export interface StoredMessage {
 }
 
 /** Streams a playground chat turn (Server-Sent Events over a POST). */
-export async function* streamChat(
+export function streamChat(
   botId: string,
   body: { message: string; conversationId?: string; includeStaff: boolean },
   signal: AbortSignal,
 ): AsyncGenerator<ChatEvent> {
-  const res = await fetch(`/api/v1/bots/${botId}/chat`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!res.ok || !res.body) {
-    const data = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } };
-    throw new ApiError(
-      res.status,
-      data.error?.code ?? "error",
-      data.error?.message ?? `Chat failed (${res.status})`,
-    );
-  }
-  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-  let buffer = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += value;
-    let sep = buffer.indexOf("\n\n");
-    while (sep !== -1) {
-      const block = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      const data = block
-        .split("\n")
-        .filter((l) => l.startsWith("data: "))
-        .map((l) => l.slice(6))
-        .join("\n");
-      if (data) yield JSON.parse(data) as ChatEvent;
-      sep = buffer.indexOf("\n\n");
-    }
-  }
+  return streamChatEvents(`/api/v1/bots/${botId}/chat`, body, { signal, credentials: "include" });
 }
