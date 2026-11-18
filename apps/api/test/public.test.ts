@@ -64,6 +64,11 @@ describe("widget helpers", () => {
     expect(normaliseAllowedOrigin("https://*.acme.com", "saas")).toBe("https://*.acme.com");
     expect(normaliseAllowedOrigin("http://localhost:5500", "selfhost")).toBe("http://localhost:5500");
     expect(() => normaliseAllowedOrigin("http://localhost:5500", "saas")).toThrow(/https/);
+    // Bare localhost means a local http test server on self-hosted installs; SaaS keeps https.
+    expect(normaliseAllowedOrigin("localhost:8080", "selfhost")).toBe("http://localhost:8080");
+    expect(normaliseAllowedOrigin("127.0.0.1", "selfhost")).toBe("http://127.0.0.1");
+    expect(normaliseAllowedOrigin("localhost:8080", "saas")).toBe("https://localhost:8080");
+    expect(originAllowed("null", ["http://localhost:8080"])).toBe(false);
     expect(() => normaliseAllowedOrigin("http://acme.com", "selfhost")).toThrow(/https/);
     expect(() => normaliseAllowedOrigin("https://acme.com/help", "saas")).toThrow(/without a path/);
     expect(() => normaliseAllowedOrigin("intranet", "saas")).toThrow(/full domain/);
@@ -109,6 +114,7 @@ describe.skipIf(!process.env.DATABASE_URL)("public widget API", () => {
         title: "Acme Help",
         greeting: "Hello!",
         primaryColor: "#0f766e",
+        logoBackground: "#111827",
         suggestedQuestions: ["Delivery times?"],
       },
     });
@@ -121,10 +127,19 @@ describe.skipIf(!process.env.DATABASE_URL)("public widget API", () => {
         title: "Acme Help",
         greeting: "Hello!",
         primaryColor: "#0f766e",
+        logoBackground: "#111827",
         suggestedQuestions: ["Delivery times?"],
       }),
     });
     expect(res.body).not.toMatch(/systemPrompt|llm|kbIds|tenant/i);
+    // Logo background: a hex colour or "transparent"; anything else is rejected.
+    expect(
+      (await client.patch(`/api/v1/bots/${botId}`, { branding: { logoBackground: "red; x" } })).status,
+    ).toBe(400);
+    await client.patch(`/api/v1/bots/${botId}`, { branding: { logoBackground: "transparent" } });
+    expect((await server.app.inject({ url: `/api/public/v1/bots/${pk}/config` })).json()).toMatchObject({
+      branding: { logoBackground: "transparent" },
+    });
     // The loader learns whether the page it runs on may show the chat.
     await client.patch(`/api/v1/bots/${botId}`, { allowedOrigins: ["https://www.acme.com"] });
     const from = (origin: string) =>
@@ -265,8 +280,26 @@ describe.skipIf(!process.env.DATABASE_URL)("public widget API", () => {
     );
     expect(hosted.headers["content-security-policy"]).not.toContain("acme.com");
 
+    // The built-in test page embeds the real snippet, needs no allowed website and can't itself be framed.
+    await client.patch(`/api/v1/bots/${botId}`, { name: "Acme <b>Help</b>" });
+    const test = await server.app.inject({ url: `/t/${pk}` });
+    expect(test.statusCode).toBe(200);
+    expect(test.body).toContain(`<script src="/widget.js" data-bot="${pk}" async></script>`);
+    expect(test.body).toContain("Acme &#60;b&#62;Help&#60;/b&#62;");
+    expect(test.body).not.toContain("<b>Help");
+    expect(test.headers["content-security-policy"]).toMatch(/frame-ancestors 'none'$/);
+    expect(test.headers["x-robots-tag"]).toBe("noindex");
+    const sameOrigin = await server.app.inject({
+      url: `/api/public/v1/bots/${pk}/config`,
+      headers: { origin: "http://localhost:3000" },
+    });
+    expect(sameOrigin.json()).toMatchObject({ embeddable: true });
+    expect((await server.app.inject({ url: "/t/pk_live_doesnotexist123456789" })).statusCode).toBe(404);
+    expect((await server.app.inject({ url: "/t/not-a-key" })).statusCode).toBe(404);
+
     await client.patch(`/api/v1/bots/${botId}`, { widgetEnabled: false, hostedPageEnabled: false });
     expect((await server.app.inject({ url: `/w/${pk}` })).statusCode).toBe(404);
+    expect((await server.app.inject({ url: `/t/${pk}` })).statusCode).toBe(404);
     expect((await server.app.inject({ url: `/b/${pk}` })).statusCode).toBe(404);
     expect((await server.app.inject({ url: `/api/public/v1/bots/${pk}/config` })).statusCode).toBe(404);
     expect(

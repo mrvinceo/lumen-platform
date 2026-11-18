@@ -21,6 +21,8 @@ export const botModeEnum = pgEnum("bot_mode", ["public", "staff", "both"]);
 export interface BotBranding {
   primaryColor?: string;
   logoUrl?: string;
+  /** Background behind the logo (or the title initial): a hex colour, or "transparent". */
+  logoBackground?: string;
   avatarUrl?: string;
   title?: string;
   greeting?: string;

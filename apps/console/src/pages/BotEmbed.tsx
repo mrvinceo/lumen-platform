@@ -30,6 +30,7 @@ export function BotEmbed({ bot }: { bot: Bot }) {
   const origin = window.location.origin;
   const snippet = `<script src="${origin}/widget.js" data-bot="${bot.publicKey}" async></script>`;
   const hostedUrl = `${origin}/b/${bot.publicKey}`;
+  const testPageUrl = `${origin}/t/${bot.publicKey}`;
 
   const [domains, setDomains] = useState(bot.allowedOrigins.join("\n"));
   const [widgetEnabled, setWidgetEnabled] = useState(bot.widgetEnabled);
@@ -39,6 +40,7 @@ export function BotEmbed({ bot }: { bot: Bot }) {
     greeting: bot.branding.greeting ?? "",
     primaryColor: bot.branding.primaryColor ?? "#4f46e5",
     logoUrl: bot.branding.logoUrl ?? "",
+    logoBackground: bot.branding.logoBackground ?? "",
     suggestedQuestions: bot.branding.suggestedQuestions ?? [],
     position: bot.branding.position ?? "bottom-right",
     theme: bot.branding.theme ?? "auto",
@@ -90,6 +92,19 @@ export function BotEmbed({ bot }: { bot: Bot }) {
             </pre>
             <CopyButton text={snippet} label="Copy embed code" />
           </div>
+          {bot.widgetEnabled && (
+            <p className="mt-3 text-sm text-muted">
+              Try the bubble on a sample page, with no website needed:{" "}
+              <a
+                href={testPageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-accent hover:underline"
+              >
+                Open test page <ExternalLink className="size-3.5" aria-hidden />
+              </a>
+            </p>
+          )}
           {bot.allowedOrigins.length === 0 && (
             <div className="mt-3">
               <Alert tone="info">
@@ -128,7 +143,7 @@ export function BotEmbed({ bot }: { bot: Bot }) {
               <Field
                 label="Allowed websites"
                 htmlFor="domains"
-                hint="One per line, e.g. https://www.example.com. Use https://*.example.com for all subdomains. Browsers block the chat everywhere else."
+                hint="One per line, e.g. https://www.example.com. Use https://*.example.com for all subdomains. Browsers block the chat everywhere else. Files opened from your computer (file://) can't show the bubble: use the test page above, or a local server such as http://localhost:8080."
               >
                 <textarea
                   id="domains"
@@ -198,17 +213,52 @@ export function BotEmbed({ bot }: { bot: Bot }) {
                   />
                 </Field>
               </div>
-              <div className="sm:col-span-2">
-                <Field label="Logo (optional)" htmlFor="b-logo" hint="An https:// link to a square image.">
-                  <Input
-                    id="b-logo"
-                    type="url"
-                    placeholder="https://www.example.com/logo.png"
-                    value={branding.logoUrl}
-                    onChange={(e) => set({ logoUrl: e.target.value })}
+              <Field label="Logo (optional)" htmlFor="b-logo" hint="An https:// link to a square image.">
+                <Input
+                  id="b-logo"
+                  type="url"
+                  placeholder="https://www.example.com/logo.png"
+                  value={branding.logoUrl}
+                  onChange={(e) => set({ logoUrl: e.target.value })}
+                />
+              </Field>
+              <Field
+                label="Logo background"
+                htmlFor="b-logo-bg"
+                hint="The circle behind the logo, or behind the title's first letter when there's no logo. Leave empty for the default."
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    id="b-logo-bg"
+                    type="color"
+                    disabled={branding.logoBackground === "transparent"}
+                    value={
+                      /^#[0-9a-f]{6}$/i.test(branding.logoBackground ?? "")
+                        ? branding.logoBackground
+                        : "#ffffff"
+                    }
+                    onChange={(e) => set({ logoBackground: e.target.value })}
+                    className="h-9 w-12 cursor-pointer rounded border border-border bg-surface disabled:cursor-not-allowed disabled:opacity-40"
                   />
-                </Field>
-              </div>
+                  <Input
+                    aria-label="Logo background hex"
+                    placeholder="Default"
+                    disabled={branding.logoBackground === "transparent"}
+                    value={branding.logoBackground === "transparent" ? "" : branding.logoBackground}
+                    onChange={(e) => set({ logoBackground: e.target.value.trim() })}
+                    className="min-w-0 flex-1 font-mono"
+                  />
+                  <label className="flex shrink-0 items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      className="accent-[var(--accent)]"
+                      checked={branding.logoBackground === "transparent"}
+                      onChange={(e) => set({ logoBackground: e.target.checked ? "transparent" : "" })}
+                    />
+                    None
+                  </label>
+                </div>
+              </Field>
               <fieldset className="sm:col-span-2">
                 <legend className="mb-1.5 text-sm font-medium">Suggested questions</legend>
                 <div className="grid gap-2 sm:grid-cols-2">

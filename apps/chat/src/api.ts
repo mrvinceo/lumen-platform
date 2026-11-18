@@ -8,6 +8,8 @@ export interface PublicConfig {
     greeting: string;
     primaryColor: string;
     logoUrl?: string;
+    /** Hex colour or "transparent"; unset keeps the default (white behind a logo, a light tint behind the initial). */
+    logoBackground?: string;
     suggestedQuestions: string[];
     position: "bottom-right" | "bottom-left";
     theme: "light" | "dark" | "auto";

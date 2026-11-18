@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       // The widget script, iframe pages and their assets are served by the API too.
       proxy: Object.fromEntries(
-        ["/api", "/widget.js", "/w/", "/b/", "/chat/"].map((path) => [
+        ["/api", "/widget.js", "/w/", "/b/", "/t/", "/chat/"].map((path) => [
           path,
           { target: `http://localhost:${apiPort}`, changeOrigin: false },
         ]),
