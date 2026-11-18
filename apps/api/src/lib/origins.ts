@@ -6,7 +6,10 @@ import { HttpError } from "./errors.js";
  */
 export function normaliseAllowedOrigin(raw: string, mode: "saas" | "selfhost"): string {
   const input = raw.trim().replace(/\/+$/, "");
-  const withScheme = /^[a-z]+:\/\//i.test(input) ? input : `https://${input}`;
+  // No scheme typed: https, except localhost on self-hosted installs (local test servers are plain http).
+  const local = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(input);
+  const defaultScheme = local && mode === "selfhost" ? "http" : "https";
+  const withScheme = /^[a-z]+:\/\//i.test(input) ? input : `${defaultScheme}://${input}`;
   const wildcard = /^(https?):\/\/\*\.([a-z0-9.-]+)(:\d+)?$/i.exec(withScheme);
   let url: URL;
   try {

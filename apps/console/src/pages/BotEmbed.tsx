@@ -30,6 +30,7 @@ export function BotEmbed({ bot }: { bot: Bot }) {
   const origin = window.location.origin;
   const snippet = `<script src="${origin}/widget.js" data-bot="${bot.publicKey}" async></script>`;
   const hostedUrl = `${origin}/b/${bot.publicKey}`;
+  const testPageUrl = `${origin}/t/${bot.publicKey}`;
 
   const [domains, setDomains] = useState(bot.allowedOrigins.join("\n"));
   const [widgetEnabled, setWidgetEnabled] = useState(bot.widgetEnabled);
@@ -90,6 +91,19 @@ export function BotEmbed({ bot }: { bot: Bot }) {
             </pre>
             <CopyButton text={snippet} label="Copy embed code" />
           </div>
+          {bot.widgetEnabled && (
+            <p className="mt-3 text-sm text-muted">
+              Try the bubble on a sample page, with no website needed:{" "}
+              <a
+                href={testPageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-accent hover:underline"
+              >
+                Open test page <ExternalLink className="size-3.5" aria-hidden />
+              </a>
+            </p>
+          )}
           {bot.allowedOrigins.length === 0 && (
             <div className="mt-3">
               <Alert tone="info">
@@ -128,7 +142,7 @@ export function BotEmbed({ bot }: { bot: Bot }) {
               <Field
                 label="Allowed websites"
                 htmlFor="domains"
-                hint="One per line, e.g. https://www.example.com. Use https://*.example.com for all subdomains. Browsers block the chat everywhere else."
+                hint="One per line, e.g. https://www.example.com. Use https://*.example.com for all subdomains. Browsers block the chat everywhere else. Files opened from your computer (file://) can't show the bubble: use the test page above, or a local server such as http://localhost:8080."
               >
                 <textarea
                   id="domains"

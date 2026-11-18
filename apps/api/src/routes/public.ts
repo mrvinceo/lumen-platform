@@ -363,9 +363,43 @@ export async function publicRoutes(app: FastifyInstance, deps: PublicRouteDeps):
     );
   });
 
+  // A sample page with the real embed snippet, for trying the bubble without a website. It is served from Lumen's own
+  // origin, which every bot's iframe already allows, so it needs no allowed-website entry.
+  app.get<{ Params: { publicKey: string } }>("/t/:publicKey", async (req, reply) => {
+    const bot = await resolvePublicBot(db, req.params.publicKey);
+    if (!bot?.widgetEnabled) return notFoundPage(reply);
+    const name = escapeHtml(bot.branding.title || bot.name);
+    const key = escapeHtml(req.params.publicKey);
+    return reply
+      .type("text/html; charset=utf-8")
+      .header("x-robots-tag", "noindex")
+      .header("referrer-policy", "no-referrer")
+      .header(
+        "content-security-policy",
+        "default-src 'self'; script-src 'self'; style-src 'unsafe-inline'; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      )
+      .send(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><title>Widget test page · ${name}</title>
+<style>body{font-family:system-ui,sans-serif;margin:0;background:#f6f4ef;color:#1c1917}main{max-width:40rem;margin:0 auto;padding:3rem 1.25rem}
+h1{font-size:1.75rem;margin:0 0 .75rem}p{line-height:1.6;color:#57534e}code{background:#e7e5e4;padding:.1rem .35rem;border-radius:.25rem}</style>
+</head><body><main>
+<h1>Widget test page</h1>
+<p>This sample page shows how <strong>${name}</strong> looks on a website. Use the chat bubble in the corner to try it.</p>
+<p>Answers are real and count towards the bot's monthly usage. To add the bubble to your own site, copy the embed code from
+the <code>Embed &amp; branding</code> tab in the Lumen console.</p>
+</main>
+<script src="/widget.js" data-bot="${key}" async></script>
+</body></html>`);
+  });
+
   app.get<{ Params: { publicKey: string } }>("/b/:publicKey", async (req, reply) => {
     const bot = await resolvePublicBot(db, req.params.publicKey);
     if (!bot?.hostedPageEnabled || !chatIndex || !existsSync(chatIndex)) return notFoundPage(reply);
     return pageHeaders(reply, frameAncestors(deps.selfOrigins, [])).send(readFileSync(chatIndex));
   });
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
