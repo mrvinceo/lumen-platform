@@ -206,6 +206,7 @@ export interface BotBranding {
   greeting?: string;
   primaryColor?: string;
   logoUrl?: string;
+  logoBackground?: string;
   suggestedQuestions?: string[];
   position?: "bottom-right" | "bottom-left";
   theme?: "light" | "dark" | "auto";

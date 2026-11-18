@@ -31,6 +31,10 @@ const brandingSchema = z.object({
     .max(500)
     .refine((v) => v === "" || v.startsWith("https://"), "The logo must be an https:// image URL.")
     .optional(),
+  logoBackground: z
+    .string()
+    .regex(/^(#[0-9a-fA-F]{6}|transparent)?$/, 'Use a hex colour like #ffffff, or "transparent".')
+    .optional(),
   suggestedQuestions: z.array(z.string().trim().min(1).max(120)).max(4).optional(),
   position: z.enum(["bottom-right", "bottom-left"]).optional(),
   theme: z.enum(["light", "dark", "auto"]).optional(),

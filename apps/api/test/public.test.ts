@@ -114,6 +114,7 @@ describe.skipIf(!process.env.DATABASE_URL)("public widget API", () => {
         title: "Acme Help",
         greeting: "Hello!",
         primaryColor: "#0f766e",
+        logoBackground: "#111827",
         suggestedQuestions: ["Delivery times?"],
       },
     });
@@ -126,10 +127,19 @@ describe.skipIf(!process.env.DATABASE_URL)("public widget API", () => {
         title: "Acme Help",
         greeting: "Hello!",
         primaryColor: "#0f766e",
+        logoBackground: "#111827",
         suggestedQuestions: ["Delivery times?"],
       }),
     });
     expect(res.body).not.toMatch(/systemPrompt|llm|kbIds|tenant/i);
+    // Logo background: a hex colour or "transparent"; anything else is rejected.
+    expect(
+      (await client.patch(`/api/v1/bots/${botId}`, { branding: { logoBackground: "red; x" } })).status,
+    ).toBe(400);
+    await client.patch(`/api/v1/bots/${botId}`, { branding: { logoBackground: "transparent" } });
+    expect((await server.app.inject({ url: `/api/public/v1/bots/${pk}/config` })).json()).toMatchObject({
+      branding: { logoBackground: "transparent" },
+    });
     // The loader learns whether the page it runs on may show the chat.
     await client.patch(`/api/v1/bots/${botId}`, { allowedOrigins: ["https://www.acme.com"] });
     const from = (origin: string) =>

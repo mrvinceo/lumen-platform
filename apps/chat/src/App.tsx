@@ -188,11 +188,24 @@ export function App({ client, channel }: { client: PublicClient; channel: Channe
     >
       <header className="flex items-center gap-3 bg-accent px-4 py-3 text-accent-fg">
         {b.logoUrl ? (
-          <img src={b.logoUrl} alt="" className="size-8 rounded-full bg-white object-contain" />
+          <img
+            src={b.logoUrl}
+            alt=""
+            className="size-8 rounded-full object-contain"
+            style={{ background: b.logoBackground ?? "#ffffff" }}
+          />
         ) : (
           <span
             aria-hidden
-            className="flex size-8 items-center justify-center rounded-full bg-white/20 font-semibold"
+            className={cx(
+              "flex size-8 items-center justify-center rounded-full font-semibold",
+              !b.logoBackground && "bg-white/20",
+            )}
+            style={
+              b.logoBackground && b.logoBackground !== "transparent"
+                ? { background: b.logoBackground, color: accentPalette(b.logoBackground, false).fg }
+                : undefined
+            }
           >
             {b.title.slice(0, 1).toUpperCase()}
           </span>

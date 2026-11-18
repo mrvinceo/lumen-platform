@@ -52,6 +52,9 @@ function publicConfig(bot: PublicBot) {
       greeting: b.greeting || "Hi! Ask me anything about our products, services and policies.",
       primaryColor: /^#[0-9a-f]{6}$/i.test(b.primaryColor ?? "") ? b.primaryColor : "#4f46e5",
       logoUrl: b.logoUrl?.startsWith("https://") ? b.logoUrl : undefined,
+      logoBackground: /^(#[0-9a-f]{6}|transparent)$/i.test(b.logoBackground ?? "")
+        ? b.logoBackground
+        : undefined,
       suggestedQuestions: (b.suggestedQuestions ?? []).slice(0, 4),
       position: b.position === "bottom-left" ? "bottom-left" : "bottom-right",
       theme: b.theme ?? "auto",

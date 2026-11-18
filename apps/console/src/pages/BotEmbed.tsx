@@ -40,6 +40,7 @@ export function BotEmbed({ bot }: { bot: Bot }) {
     greeting: bot.branding.greeting ?? "",
     primaryColor: bot.branding.primaryColor ?? "#4f46e5",
     logoUrl: bot.branding.logoUrl ?? "",
+    logoBackground: bot.branding.logoBackground ?? "",
     suggestedQuestions: bot.branding.suggestedQuestions ?? [],
     position: bot.branding.position ?? "bottom-right",
     theme: bot.branding.theme ?? "auto",
@@ -212,17 +213,52 @@ export function BotEmbed({ bot }: { bot: Bot }) {
                   />
                 </Field>
               </div>
-              <div className="sm:col-span-2">
-                <Field label="Logo (optional)" htmlFor="b-logo" hint="An https:// link to a square image.">
-                  <Input
-                    id="b-logo"
-                    type="url"
-                    placeholder="https://www.example.com/logo.png"
-                    value={branding.logoUrl}
-                    onChange={(e) => set({ logoUrl: e.target.value })}
+              <Field label="Logo (optional)" htmlFor="b-logo" hint="An https:// link to a square image.">
+                <Input
+                  id="b-logo"
+                  type="url"
+                  placeholder="https://www.example.com/logo.png"
+                  value={branding.logoUrl}
+                  onChange={(e) => set({ logoUrl: e.target.value })}
+                />
+              </Field>
+              <Field
+                label="Logo background"
+                htmlFor="b-logo-bg"
+                hint="The circle behind the logo, or behind the title's first letter when there's no logo. Leave empty for the default."
+              >
+                <div className="flex items-center gap-2">
+                  <input
+                    id="b-logo-bg"
+                    type="color"
+                    disabled={branding.logoBackground === "transparent"}
+                    value={
+                      /^#[0-9a-f]{6}$/i.test(branding.logoBackground ?? "")
+                        ? branding.logoBackground
+                        : "#ffffff"
+                    }
+                    onChange={(e) => set({ logoBackground: e.target.value })}
+                    className="h-9 w-12 cursor-pointer rounded border border-border bg-surface disabled:cursor-not-allowed disabled:opacity-40"
                   />
-                </Field>
-              </div>
+                  <Input
+                    aria-label="Logo background hex"
+                    placeholder="Default"
+                    disabled={branding.logoBackground === "transparent"}
+                    value={branding.logoBackground === "transparent" ? "" : branding.logoBackground}
+                    onChange={(e) => set({ logoBackground: e.target.value.trim() })}
+                    className="min-w-0 flex-1 font-mono"
+                  />
+                  <label className="flex shrink-0 items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      className="accent-[var(--accent)]"
+                      checked={branding.logoBackground === "transparent"}
+                      onChange={(e) => set({ logoBackground: e.target.checked ? "transparent" : "" })}
+                    />
+                    None
+                  </label>
+                </div>
+              </Field>
               <fieldset className="sm:col-span-2">
                 <legend className="mb-1.5 text-sm font-medium">Suggested questions</legend>
                 <div className="grid gap-2 sm:grid-cols-2">
