@@ -27,6 +27,8 @@ COPY --from=build /repo/packages/db/migrations ./migrations
 COPY --from=build /repo/apps/console/dist ./console
 COPY --from=build /repo/apps/chat/dist ./chat
 COPY --from=build /repo/packages/widget/dist/widget.js ./widget/widget.js
+# Uploads directory for STORAGE_DRIVER=fs; a named volume mounted here inherits this ownership.
+RUN mkdir -p /data/uploads && chown node:node /data/uploads
 USER node
 EXPOSE 3000
 CMD ["node", "dist/main.js"]

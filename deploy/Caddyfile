@@ -1,0 +1,6 @@
+# Caddy gets and renews the HTTPS certificate for LUMEN_DOMAIN automatically (ports 80 and 443 must be open).
+{$LUMEN_DOMAIN} {
+	encode zstd gzip
+	# Chat answers stream as server-sent events; Caddy passes them through without buffering.
+	reverse_proxy api:3000
+}
