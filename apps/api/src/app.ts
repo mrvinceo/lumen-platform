@@ -29,6 +29,8 @@ export interface AppDeps {
   auth?: Auth;
   keys?: KeyProvider;
   mode?: "saas" | "selfhost";
+  /** ALLOW_SIGNUPS: whether new accounts and workspaces can be created (the console hides the form otherwise). */
+  allowSignups?: boolean;
   logLevel?: string;
   /** Directory with the built console; served at / when present. */
   consoleDist?: string;
@@ -109,7 +111,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       },
     });
 
-    await meRoutes(app, { db: deps.db, auth });
+    await meRoutes(app, { db: deps.db, auth, allowSignups: deps.allowSignups ?? true });
     await providerRoutes(app, {
       db: deps.db,
       auth,

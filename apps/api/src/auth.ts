@@ -1,5 +1,5 @@
 import { hkdfSync, randomUUID } from "node:crypto";
-import { type Database, schema } from "@lumen/db";
+import { type Database, desc, eq, schema, withSystem } from "@lumen/db";
 import type { ServerEnv } from "@lumen/shared";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -80,6 +80,19 @@ export function createAuth(db: Database, env: AuthEnv) {
       minPasswordLength: 10,
     },
     socialProviders,
+    databaseHooks: {
+      session: {
+        create: {
+          // A new sign-in starts without an active workspace; open the one the user joined most recently.
+          before: async (session) => {
+            if ((session as { activeOrganizationId?: string | null }).activeOrganizationId) return;
+            const tenantId = await latestTenantOf(db, session.userId);
+            if (!tenantId) return;
+            return { data: { ...session, activeOrganizationId: tenantId } };
+          },
+        },
+      },
+    },
     rateLimit: { enabled: env.NODE_ENV === "production" },
     plugins: [
       organization({
@@ -95,3 +108,16 @@ export function createAuth(db: Database, env: AuthEnv) {
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+/** The workspace the user joined most recently, if any (system connection: this runs during sign-in). */
+export async function latestTenantOf(db: Database, userId: string): Promise<string | undefined> {
+  const [row] = await withSystem(db, (sys) =>
+    sys
+      .select({ tenantId: schema.members.tenantId })
+      .from(schema.members)
+      .where(eq(schema.members.userId, userId))
+      .orderBy(desc(schema.members.createdAt))
+      .limit(1),
+  );
+  return row?.tenantId;
+}
