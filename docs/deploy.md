@@ -44,14 +44,14 @@ Copy the whole line it prints (it starts with `ssh-ed25519`). You'll paste it in
 
 In the DigitalOcean control panel, click **Create → Droplets** and choose:
 
-| Setting                | Choose                                                                                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Region**             | **London** (LON1), or the region nearest your users                                                                                               |
-| **Image**              | **Marketplace** tab → search **Docker** → **Docker on Ubuntu** (Ubuntu 24.04 with Docker already installed)                                       |
-| **Size**               | **Basic** → **Regular** (SSD) → **$24/mo: 2 vCPU, 4 GB RAM, 80 GB SSD**. The 2 GB plan (about $12/mo) works for light use, but builds are slower. |
-| **Authentication**     | **SSH Key** → **New SSH Key** → paste the line from step 1 → name it e.g. "My laptop"                                                             |
-| **Additional options** | Tick **Monitoring** (free CPU, memory and disk graphs). Optionally tick **Backups** (automatic whole-server snapshots, about 20% extra).          |
-| **Hostname**           | `lumen`                                                                                                                                           |
+| Setting                | Choose                                                                                                                                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Region**             | **London** (LON1), or the region nearest your users                                                                                                                                                                            |
+| **Image**              | **Marketplace** tab → search **Docker** → **Docker on Ubuntu** (Ubuntu 24.04 with Docker already installed)                                                                                                                    |
+| **Size**               | **Basic** → **Regular** (SSD) → **$24/mo: 2 vCPU, 4 GB RAM, 80 GB SSD**. The 2 GB plan (about $12/mo) is the minimum and builds are slower. **Don't use the 1 GB plan:** building Lumen runs out of memory ("signal: killed"). |
+| **Authentication**     | **SSH Key** → **New SSH Key** → paste the line from step 1 → name it e.g. "My laptop"                                                                                                                                          |
+| **Additional options** | Tick **Monitoring** (free CPU, memory and disk graphs). Optionally tick **Backups** (automatic whole-server snapshots, about 20% extra).                                                                                       |
+| **Hostname**           | `lumen`                                                                                                                                                                                                                        |
 
 Click **Create Droplet**. After about a minute it shows an **IPv4** address: that's your `<droplet-ip>`.
 
@@ -548,8 +548,12 @@ lumen run --rm --no-deps -T --entrypoint tar api -xzf - -C /data/uploads < /var/
 - **Something isn't working.** `lumen ps` shows what's running, and `lumen logs --tail 100 api` (or `worker`) shows
   recent errors.
 - **Documents stay "Queued".** The worker isn't running or can't reach Redis: `lumen logs --tail 100 worker`.
-- **The build is killed, or the server is very slow.** It's out of memory: check swap is on (`free -h`, step 5f), or
-  resize the Droplet (**Droplet → Resize**, CPU and RAM only, so you can scale back down).
+- **The build stops with `signal: killed`, or the server is very slow.** It's out of memory. 1 GB Droplets are too small.
+  1. Resize: **Power → Turn off**, then **Resize → CPU and RAM only →** 2 GB or more, then **Power → Turn on**. "CPU
+     and RAM only" keeps the disk the same size, so you can scale back down later.
+  2. Check swap is on: `free -h` should show `Swap: 2.0Gi` (step 5f).
+  3. Build the two images one after the other, which uses less memory than building both at once:
+     `lumen build api`, then `lumen build worker`, then `lumen up -d`.
 - **The disk is full.** `df -h /`, then `docker image prune -f` and `docker builder prune -f`.
 - **After rebooting the server.** Everything restarts on its own (`restart: unless-stopped`).
 

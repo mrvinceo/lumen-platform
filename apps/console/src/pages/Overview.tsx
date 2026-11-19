@@ -42,7 +42,7 @@ export function OverviewPage() {
     {
       done: (bots.data?.bots ?? []).some((b) => b.conversationCount > 0),
       title: "Build and test a bot",
-      body: "Pick its knowledge and chat model, then try it in the playground. Embedding it on your site is coming next.",
+      body: "Pick its knowledge and chat model, try it in the playground, then add it to your website from its Embed & branding tab.",
       to: "/bots",
       phase: null,
     },

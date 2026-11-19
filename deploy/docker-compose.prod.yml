@@ -47,10 +47,12 @@ services:
       interval: 5s
       retries: 20
 
+  # Runs the database migrations from the api image, then exits. The image is built by the api service below;
+  # pull_policy: never stops Compose trying to download "lumen-api" from Docker Hub.
   migrate:
     <<: *app
-    build: { context: .., args: { APP: api } }
     image: lumen-api
+    pull_policy: never
     restart: "no"
     command: ["node", "dist/migrate.js"]
     depends_on:
@@ -58,7 +60,9 @@ services:
 
   api:
     <<: *app
+    build: { context: .., args: { APP: api } }
     image: lumen-api
+    pull_policy: build
     volumes: [uploads:/data/uploads]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -68,6 +72,7 @@ services:
     <<: *app
     build: { context: .., args: { APP: worker } }
     image: lumen-worker
+    pull_policy: build
     volumes: [uploads:/data/uploads]
     depends_on:
       migrate: { condition: service_completed_successfully }

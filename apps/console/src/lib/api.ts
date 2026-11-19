@@ -42,6 +42,8 @@ export interface Me {
   user: { id: string; email: string; name: string | null };
   tenant: { id: string; name: string; slug: string; role: Role } | null;
   tenants: { id: string; name: string; slug: string; role: Role }[];
+  /** False when the server has sign-ups (and new workspaces) turned off. */
+  canCreateWorkspace: boolean;
 }
 
 export interface ProviderInfo {

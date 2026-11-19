@@ -3,6 +3,7 @@ import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Alert, Button, Card, Field, Input, Logo } from "../components/ui";
 import { authClient } from "../lib/auth";
+import { useMe } from "../lib/session";
 
 function AuthShell({
   title,
@@ -173,9 +174,13 @@ function slugify(s: string): string {
 export function CreateWorkspacePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const me = useMe();
   const [name, setName] = useState("");
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [opening, setOpening] = useState<string>();
+  const existing = me.data?.tenants ?? [];
+  const canCreate = me.data?.canCreateWorkspace ?? true;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -190,27 +195,65 @@ export function CreateWorkspacePage() {
     navigate("/");
   }
 
+  async function open(tenantId: string) {
+    setOpening(tenantId);
+    setError(undefined);
+    const { error } = await authClient.organization.setActive({ organizationId: tenantId });
+    setOpening(undefined);
+    if (error) return setError(error.message ?? "Could not open the workspace.");
+    await qc.invalidateQueries();
+    navigate("/");
+  }
+
   return (
     <AuthShell
-      title="Create your workspace"
+      title={
+        existing.length > 0 ? "Choose a workspace" : canCreate ? "Create your workspace" : "No workspace yet"
+      }
       footer="A workspace holds your models, knowledge bases and bots. You can invite teammates later."
     >
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        <Field label="Company or team name" htmlFor="ws">
-          <Input
-            id="ws"
-            required
-            maxLength={80}
-            placeholder="Acme Ltd"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </Field>
+      <div className="flex flex-col gap-5">
+        {existing.length > 0 && (
+          <ul className="flex flex-col gap-2" aria-label="Your workspaces">
+            {existing.map((t) => (
+              <li
+                key={t.id}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+              >
+                <span className="min-w-0 truncate text-sm font-medium">{t.name}</span>
+                <Button variant="secondary" loading={opening === t.id} onClick={() => open(t.id)}>
+                  Open
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {canCreate ? (
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            {existing.length > 0 && <h2 className="text-sm font-medium">Or create a new workspace</h2>}
+            <Field label="Company or team name" htmlFor="ws">
+              <Input
+                id="ws"
+                required
+                maxLength={80}
+                placeholder="Acme Ltd"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </Field>
+            <Button type="submit" loading={busy}>
+              Create workspace
+            </Button>
+          </form>
+        ) : (
+          existing.length === 0 && (
+            <Alert tone="info">
+              New workspaces are turned off on this server. Ask an administrator to invite you to theirs.
+            </Alert>
+          )
+        )}
         {error && <Alert tone="danger">{error}</Alert>}
-        <Button type="submit" loading={busy}>
-          Create workspace
-        </Button>
-      </form>
+      </div>
     </AuthShell>
   );
 }

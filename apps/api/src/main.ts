@@ -26,6 +26,7 @@ const app = await buildApp({
   auth,
   keys,
   mode: env.LUMEN_MODE,
+  allowSignups: env.ALLOW_SIGNUPS,
   objects: createObjectStore(env),
   queue,
   maxUploadMb: env.MAX_UPLOAD_MB,

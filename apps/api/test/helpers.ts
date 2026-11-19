@@ -57,7 +57,12 @@ function inlineQueue(deps: () => RuntimeDeps, jobs: IngestionJob[]): IngestionQu
 }
 
 export async function startTestServer(
-  opts: { fetch?: typeof fetch; mode?: "saas" | "selfhost"; limits?: Partial<WidgetLimits> } = {},
+  opts: {
+    fetch?: typeof fetch;
+    mode?: "saas" | "selfhost";
+    limits?: Partial<WidgetLimits>;
+    allowSignups?: boolean;
+  } = {},
 ): Promise<TestServer> {
   const url = process.env.DATABASE_URL!;
   await runMigrations(process.env.DATABASE_ADMIN_URL || url);
@@ -67,7 +72,7 @@ export async function startTestServer(
     MASTER_KEY: masterKey,
     PUBLIC_URL: ORIGIN,
     CONSOLE_URL: "http://localhost:5173",
-    ALLOW_SIGNUPS: true,
+    ALLOW_SIGNUPS: opts.allowSignups ?? true,
     MICROSOFT_TENANT_ID: "common",
     NODE_ENV: "test",
   });
@@ -80,6 +85,7 @@ export async function startTestServer(
     auth,
     keys,
     mode: opts.mode ?? "selfhost",
+    allowSignups: opts.allowSignups ?? true,
     logLevel: "silent",
     fetch: opts.fetch,
     objects,
