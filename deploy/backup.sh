@@ -16,8 +16,9 @@ mkdir -p "$BACKUP_DIR"
 mv "$BACKUP_DIR/db-$STAMP.sql.gz.part" "$BACKUP_DIR/db-$STAMP.sql.gz"
 
 # Uploaded documents (the originals; everything else can be rebuilt from them and the database).
-"${compose[@]}" run --rm --no-deps -T -v "$BACKUP_DIR:/backup" --entrypoint tar api \
-  -czf "/backup/uploads-$STAMP.tar.gz.part" -C /data/uploads .
+# Streamed out of the container, so the file is written by this script's user (no shared permissions needed).
+"${compose[@]}" run --rm --no-deps -T --entrypoint tar api -czf - -C /data/uploads . \
+  > "$BACKUP_DIR/uploads-$STAMP.tar.gz.part"
 mv "$BACKUP_DIR/uploads-$STAMP.tar.gz.part" "$BACKUP_DIR/uploads-$STAMP.tar.gz"
 
 find "$BACKUP_DIR" -name '*.gz' -mtime +"$KEEP_DAYS" -delete
