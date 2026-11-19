@@ -205,7 +205,8 @@ Type `y` when it warns about SSH; you've allowed it. Then check:
 sudo ufw status
 ```
 
-It should list `OpenSSH`, `80,443/tcp` and `443/udp` as `ALLOW`.
+It should list `OpenSSH`, `80,443/tcp` and `443/udp` as `ALLOW`. If it also lists rules for ports `2375` or `2376` (some Docker images add them for remote Docker access, which Lumen
+doesn't use), remove them, e.g. `sudo ufw delete allow 2375/tcp` and `sudo ufw delete allow 2376/tcp`.
 
 > Docker can open ports that bypass `ufw`. Lumen's production setup only opens Caddy's ports 80 and 443; the database
 > and Redis are never exposed. The DigitalOcean firewall from step 3 also protects you.
@@ -535,7 +536,7 @@ lumen up -d
 To restore uploaded files (again, use the matching file name):
 
 ```bash
-lumen run --rm --no-deps -T -v /var/backups/lumen:/backup --entrypoint tar api -xzf /backup/uploads-2026-11-19-0315.tar.gz -C /data/uploads
+lumen run --rm --no-deps -T --entrypoint tar api -xzf - -C /data/uploads < /var/backups/lumen/uploads-2026-11-19-0315.tar.gz
 ```
 
 ## 13. Troubleshooting
