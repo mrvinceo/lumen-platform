@@ -1,0 +1,94 @@
+# Production: everything on one server, with Caddy serving HTTPS. See docs/deploy.md.
+# Run from the repo root:
+#   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env.production up -d --build
+name: lumen
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+# Shared by migrate, api and worker. Only Caddy is reachable from outside the server.
+x-app: &app
+  env_file: [.env.production]
+  restart: unless-stopped
+  logging: *logging
+  environment: &app-env
+    DATABASE_URL: postgres://lumen:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env.production}@postgres:5432/lumen
+    REDIS_URL: redis://redis:6379
+    PUBLIC_URL: https://${LUMEN_DOMAIN:?set LUMEN_DOMAIN in deploy/.env.production}
+    CONSOLE_URL: https://${LUMEN_DOMAIN}
+    # api and worker share the uploads volume.
+    STORAGE_DRIVER: fs
+    STORAGE_DIR: /data/uploads
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg16
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: lumen
+      POSTGRES_DB: lumen
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lumen -d lumen"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    logging: *logging
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  migrate:
+    <<: *app
+    build: { context: .., args: { APP: api } }
+    image: lumen-api
+    restart: "no"
+    command: ["node", "dist/migrate.js"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    <<: *app
+    image: lumen-api
+    volumes: [uploads:/data/uploads]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker:
+    <<: *app
+    build: { context: .., args: { APP: worker } }
+    image: lumen-worker
+    volumes: [uploads:/data/uploads]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      LUMEN_DOMAIN: ${LUMEN_DOMAIN}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:
+  caddydata:
+  caddyconfig:

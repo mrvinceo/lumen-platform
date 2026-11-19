@@ -32,7 +32,7 @@ packages/crypto Envelope encryption for tenant secrets
 packages/core   Model adapters, vector store adapters (Pinecone, Firestore), parsers and chunker
 packages/runtime Shared server code: ingestion, hybrid retrieval, chat service, managed pgvector, storage, queue
 packages/shared Env parsing, ids, shared types
-deploy/         docker-compose (Postgres+pgvector, Redis, S3-compatible storage, apps)
+deploy/         docker-compose for development and production (Caddy HTTPS), backup script
 docs/           Architecture and plan
 ```
 
@@ -87,7 +87,12 @@ curl localhost:3000/ready
 
 In production the API serves the built console itself, so everything is on one origin (`PUBLIC_URL`).
 
-### Self-hosting
+### Deploying to a server
+
+[docs/deploy.md](docs/deploy.md) is a step-by-step guide to running Lumen on one DigitalOcean Droplet, with automatic
+HTTPS (Caddy), backups and updates. It uses `deploy/docker-compose.prod.yml`.
+
+To try the whole containerised stack locally, without HTTPS:
 
 ```bash
 docker compose --env-file .env -f deploy/docker-compose.yml --profile app up -d --build
