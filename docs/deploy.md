@@ -44,14 +44,14 @@ Copy the whole line it prints (it starts with `ssh-ed25519`). You'll paste it in
 
 In the DigitalOcean control panel, click **Create → Droplets** and choose:
 
-| Setting | Choose |
-|---|---|
-| **Region** | **London** (LON1), or the region nearest your users |
-| **Image** | **Marketplace** tab → search **Docker** → **Docker on Ubuntu** (Ubuntu 24.04 with Docker already installed) |
-| **Size** | **Basic** → **Regular** (SSD) → **$24/mo: 2 vCPU, 4 GB RAM, 80 GB SSD**. The 2 GB plan (about $12/mo) works for light use, but builds are slower. |
-| **Authentication** | **SSH Key** → **New SSH Key** → paste the line from step 1 → name it e.g. "My laptop" |
-| **Additional options** | Tick **Monitoring** (free CPU, memory and disk graphs). Optionally tick **Backups** (automatic whole-server snapshots, about 20% extra). |
-| **Hostname** | `lumen` |
+| Setting                | Choose                                                                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Region**             | **London** (LON1), or the region nearest your users                                                                                               |
+| **Image**              | **Marketplace** tab → search **Docker** → **Docker on Ubuntu** (Ubuntu 24.04 with Docker already installed)                                       |
+| **Size**               | **Basic** → **Regular** (SSD) → **$24/mo: 2 vCPU, 4 GB RAM, 80 GB SSD**. The 2 GB plan (about $12/mo) works for light use, but builds are slower. |
+| **Authentication**     | **SSH Key** → **New SSH Key** → paste the line from step 1 → name it e.g. "My laptop"                                                             |
+| **Additional options** | Tick **Monitoring** (free CPU, memory and disk graphs). Optionally tick **Backups** (automatic whole-server snapshots, about 20% extra).          |
+| **Hostname**           | `lumen`                                                                                                                                           |
 
 Click **Create Droplet**. After about a minute it shows an **IPv4** address: that's your `<droplet-ip>`.
 
@@ -80,9 +80,9 @@ This blocks everything except SSH and web traffic before it reaches the server.
 
 Add a DNS record wherever ryzomi.com's DNS is managed today (usually your domain registrar):
 
-| Type | Name / Host | Value | TTL |
-|---|---|---|---|
-| `A` | `lumen` | `<droplet-ip>` (or the Reserved IP) | 300 (or the lowest offered) |
+| Type | Name / Host | Value                               | TTL                         |
+| ---- | ----------- | ----------------------------------- | --------------------------- |
+| `A`  | `lumen`     | `<droplet-ip>` (or the Reserved IP) | 300 (or the lowest offered) |
 
 If you'd rather manage DNS in DigitalOcean, add the domain under **Networking → Domains** and change the domain's
 nameservers at your registrar to `ns1/ns2/ns3.digitalocean.com`. Then create the same `A` record there. Nameserver
